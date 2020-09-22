@@ -32,55 +32,71 @@ class PaifuDataset(torch.utils.data.Dataset):
         return x, y
 
     def paifu_to_xy(self, paifu, state_idx):
-        x = paifu[state_idx]
-        # who_x = np.random.randint(0, len(x['hands']))
-
         device = catalyst.utils.get_device()
-        # x['my_hand'] = self.pais2ids(x['hands'][who_x])
-        # x['my_hand'] = self.normalize_pai_list(x['my_hand'], device)
+        x = paifu[state_idx]
 
-        # x['known_other_player_hands'] = torch.zeros((3, 14), dtype=torch.long)
-        # y = torch.zeros((3, 14), device=device, dtype=torch.long)
+        # action
+        y = x['action']
 
-        y = torch.zeros((4, 14), device=device, dtype=torch.long)
+        # hand
+        for i in range(len(x['hands'])):
+            x['hands'][i] = self.pais2ids(x['hands'][i])
+            x['hands'][i] = self.normalize_pai_list(x['hands'][i], device)
 
-        for i, hand in enumerate(x['hands']):
-            hand = self.pais2ids(hand)
-            y[i, :] = self.normalize_pai_list(hand, device)
-
-        # for i, hand in enumerate(x['hands']):
-        #     if i == who_x:
-        #         continue
-
-            # j = (4 + i - who_x) % 4 - 1
-
-            # l = len(hand)
-            # p = np.random.uniform(0.0, 1.0)
-            # p = 0.1
-            # mask = np.array([True] + [True] * int((l - 1) * p) + [False] * int((l - 1) * (1.0 - p)))
-            # np.random.shuffle(mask)
-
-            # x_known = self.pais2ids(
-            #     [h for h, m in zip(hand, mask) if not m]
-            # )
-            # x['known_other_player_hands'][j, :len(x_known)] = torch.tensor(x_known, device=device)
-
-            # y_arr = self.pais2ids(
-            #     [h for h, m in zip(hand, mask) if m]
-            # )
-
-            # if i < who_x:
-            #     y[j, :len(y_arr)] = torch.tensor(y_arr, device=device)
-            # elif i > who_x:
-            #     y[j-1, :len(y_arr)] = torch.tensor(y_arr, device=device)
-
+        # discards
         x['discards'] = self.normalize_discards(x['discards'], device)
+
+        # melds
         x['melds'] = [
             self.normalize_melds([
                 m for m in x['melds'] if m['who'] == i
             ], device) for i in range(4)
         ]
+
+        # menzen
+        x['menzen'] = x['menzen']
+
+        # reach_state
+        x['reach_state'] = x['reach_state']
+
+        # n_reach
+        x['n_reach'] = x['n_reach']
+
+        # reach_ippatsu
+        x['reach_ippatsu'] = x['reach_ippatsu']
+
+        # doras
         x['doras'] = self.normalize_doras(x['doras'], device)
+
+        # dans
+        x['dans'] = x['dans']
+
+        # rates
+        x['rates'] = x['rates']
+
+        # oya
+        x['oya'] = x['oya']
+
+        # scores
+        x['scores'] = x['scores']
+
+        # n_honba
+        x['n_honba'] = x['n_honba']
+
+        # n_round
+        x['n_round'] = x['n_round']
+
+        # sanma_or_yonma
+        x['sanma_or_yonma'] = x['sanma_or_yonma']
+
+        # han_or_ton
+        x['han_or_ton'] = x['han_or_ton']
+
+        # aka_ari
+        x['aka_ari'] = x['aka_ari']
+
+        # kui_ari
+        x['kui_ari'] = x['kui_ari']
 
         return x, y
 
