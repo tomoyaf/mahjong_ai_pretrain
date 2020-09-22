@@ -26,7 +26,7 @@ class CustomRunner(dl.Runner):
         })
 
         if self.state.is_train_loader:
-            loss.backward()
+            loss.mean().backward()
             self.state.optimizer.step()
             self.state.optimizer.zero_grad()
             self.state.scheduler.step()
