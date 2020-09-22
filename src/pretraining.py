@@ -19,7 +19,7 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        accuracy, loss, accuracy = self.model(x, y)
+        loss, accuracy = self.model(x, y)
 
         self.state.batch_metrics.update({
             'loss': loss,
@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_path', type=str, default='./output/pretrained')
 parser.add_argument('--n_classes', type=int, default=37)
-parser.add_argument('--n_epochs', type=int, default=4)
-parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--n_epochs', type=int, default=3)
+parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--lr', type=int, default=1e-4)
 parser.add_argument('--weight_decay', type=int, default=1e-2)
 parser.add_argument('--seed', type=int, default=2434)

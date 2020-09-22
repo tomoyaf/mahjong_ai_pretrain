@@ -13,13 +13,48 @@ from pretraining_data import PaifuDataset
 
 def get_model():
     config = BertConfig()
-    config.vocab_size = 37 + 5
-    # config.hidden_size = 120 # 768
-    config.hidden_size = 72
-    # config.num_attention_heads = 12
-    config.num_hidden_layers = 5
-    # config.max_position_embeddings = 512
-    return MahjongModelForPreTraining(config)
+    # tile(37), menzen(2), reach_state(2), n_reach(3),
+    # reach_ippatsu(2), dans(21), rates(19), oya(4),
+    # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
+    # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
+    config.vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4
+    config.hidden_size = 120
+    config.num_hidden_layers = 3
+
+    discard_config = BertConfig()
+    discard_config.vocab_size = config.vocab_size
+    discard_config.hidden_size = config.hidden_size
+    discard_config.num_hidden_layers = 2
+
+    reach_config = BertConfig()
+    reach_config.vocab_size = config.vocab_size
+    reach_config.hidden_size = config.hidden_size
+    reach_config.num_hidden_layers = 1
+
+    chow_config = BertConfig()
+    chow_config.vocab_size = config.vocab_size
+    chow_config.hidden_size = config.hidden_size
+    chow_config.num_hidden_layers = 1
+
+    pong_config = BertConfig()
+    pong_config.vocab_size = config.vocab_size
+    pong_config.hidden_size = config.hidden_size
+    pong_config.num_hidden_layers = 1
+
+    kong_config = BertConfig()
+    kong_config.vocab_size = config.vocab_size
+    kong_config.hidden_size = config.hidden_size
+    kong_config.num_hidden_layers = 1
+
+
+    return MahjongModelForPreTraining(
+        config,
+        discard_config,
+        reach_config,
+        chow_config,
+        pong_config,
+        kong_config
+    )
 
 
 def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps=1e4, n_training_steps=1e5):
@@ -33,16 +68,11 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
 
 
 def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'chow', 'pong', 'kong']):
-    path_list_dict = {}
-    whole_path_list = []
-    for model_type in model_types:
-        path_list = glob(f'./pickle/{model_type}/paifu_2018_*.pickle')
-        path_list_dict[model_type] = path_list[:10000]
-        whole_path_list = [*whole_path_list, *path_list_dict[model_type]]
+    path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
+    np.random.shuffle(path_list)
+    path_list = path_list[:10000]
 
-    np.random.shuffle(whole_path_list)
-
-    data_size = len(whole_path_list[model_type] )
+    data_size = len(path_list)
     train_size = int(data_size * 0.8)
     val_size = data_size - train_size
 
@@ -59,7 +89,7 @@ def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'c
 
 
 class MahjongEmbeddings(nn.Module):
-    def __init__(self, config, n_token_type=13):
+    def __init__(self, config, n_token_type=31):
         super(MahjongEmbeddings, self).__init__()
         print(config)
         self.tile_embeddings = nn.Embedding(
@@ -80,30 +110,37 @@ class MahjongEmbeddings(nn.Module):
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
+        # Special token id
         self.sep_token_id = 37
         self.cls_token_id = 38
         self.mask_token_id = 39
         self.pad_token_id = config.pad_token_id
 
-        # self.hand_tile_token_id = 1
-        # self.known_hand_tile_token_id = 2
-        self.discards_tile_token_id = 3
+        # Token type id
+        self.hand_token_id = 0
+        self.discard_0_token_id = 1
+        self.discard_1_token_id = 2
+        self.discard_2_token_id = 3
+        self.discard_3_token_id = 4
+        self.menzen_token_id = 5
+        self.reach_state_token_id = 6
+        self.n_reach_token_id = 7
+        self.reach_ippatsu_token_id = 8
+        self.dora_token_id = 9
+        self.dans_token_id = 10
+        self.rates_token_id = 11
+        self.scores_token_id = 12
+        self.oya_token_id = 13
+        self.n_honba_token_id = 14
+        self.n_round_token_id = 15
+        self.sanma_or_yonma_token_id = 16
+        self.han_or_ton_token_id = 17
+        self.aka_ari_token_id = 18
+        self.kui_ari_token_id = 19
+        self.action_meld_tiles_token_id = 20
 
-        self.who_0_hand_token_id = 4
-        self.who_1_hand_token_id = 5
-        self.who_2_hand_token_id = 4
-        self.who_3_hand_token_id = 7
-
-        self.who_0_discard_token_id = 8
-        self.who_1_discard_token_id = 9
-        self.who_2_discard_token_id = 10
-        self.who_3_discard_token_id = 11
-
-        self.dora_token_id = 12
-
-        # Add Chow: 0, Pong : 1, Kong : 2
-        # Result Chow: 13, Pong: 14, Kong: 15
-        self.meld_base_token_id = 13
+        # Chow: 0, Pong : 1, Add Kong : 2, Pei : 3, Open Kong : 4, Closed Kong : 5
+        self.meld_base_token_id = 21
 
         self.special_token_id_list = [
             self.sep_token_id,
@@ -112,40 +149,12 @@ class MahjongEmbeddings(nn.Module):
             self.mask_token_id
         ]
 
-    # {
-    #     'paifu_id': self.paifu_id,
-    #     'dans': copy.deepcopy(self.dans),
-    #     'rates': copy.deepcopy(self.rates),
-    #     'sanma_or_yonma' : self.sanma_or_yonma,
-    #     'han_or_ton': self.han_or_ton,
-    #     'aka_ari': self.aka_ari,
-    #     'kui_ari': self.kui_ari,
-    #     'hands': self.iarr2str(s.hands, True, 2),
-    #     'melds': [{
-    #         **meld,
-    #         'meld_tiles': self.iarr2str(meld['meld_tiles']),
-    #         'original_my_tiles': self.iarr2str(meld['original_my_tiles'])
-    #     } for meld in s.melds],
-    #     'meld_tiles': self.iarr2str(s.meld_tiles, True, 2),
-    #     'discards': self.iarr2str(s.discards, False, 2),
-    #     'n_reach': s.n_reach,
-    #     'reach_state': copy.deepcopy(s.reach_state),
-    #     'reach_ippatsu': copy.deepcopy(s.reach_ippatsu),
-    #     'doras': self.iarr2str(s.doras),
-    #     'oya': s.oya,
-    #     'scores': copy.deepcopy(s.scores),
-    #     'n_honba': s.n_honba,
-    #     'n_round': s.n_round,
-    #     'menzen': copy.deepcopy(s.menzen),
-    #     'action': copy.deepcopy(action)
-    # }
-
     def data2x(self, features, device):
+        who = features['who']
+        hand = features['hand']
         batch_size = hand.size()[0]
         cls_ids = torch.full((batch_size, 1), self.cls_token_id, dtype=torch.long, device=device)
         sep_ids = torch.full((batch_size, 1), self.sep_token_id, dtype=torch.long, device=device)
-        who = features['action']['who']
-        hand = features['hands'][:, who, :]
         x = torch.cat([
             cls_ids,
             hand,
@@ -166,41 +175,25 @@ class MahjongEmbeddings(nn.Module):
             sep_ids,
             features['melds'][3][:, 0],
             sep_ids,
-            features['menzen'][:, 0, :],
-            features['menzen'][:, 1, :],
-            features['menzen'][:, 2, :],
-            features['menzen'][:, 3, :],
+            features['action_meld_tiles'],
             sep_ids,
-            features['reach_state'][:, 0, :],
-            features['reach_state'][:, 1, :],
-            features['reach_state'][:, 2, :],
-            features['reach_state'][:, 3, :],
+            features['menzen'],
+            sep_ids,
+            features['reach_state'],
             sep_ids,
             features['n_reach'],
             sep_ids,
-            features['reach_ippatsu'][:, 0, :],
-            features['reach_ippatsu'][:, 1, :],
-            features['reach_ippatsu'][:, 2, :],
-            features['reach_ippatsu'][:, 3, :],
+            features['reach_ippatsu'],
             sep_ids,
             features['doras'],
             sep_ids,
-            features['dans'][:, 0, :],
-            features['dans'][:, 1, :],
-            features['dans'][:, 2, :],
-            features['dans'][:, 3, :],
+            features['dans'],
             sep_ids,
-            features['rates'][:, 0, :],
-            features['rates'][:, 1, :],
-            features['rates'][:, 2, :],
-            features['rates'][:, 3, :],
+            features['rates'],
+            sep_ids,
+            features['scores'],
             sep_ids,
             features['oya'],
-            sep_ids,
-            features['scores'][:, 0, :],
-            features['scores'][:, 1, :],
-            features['scores'][:, 2, :],
-            features['scores'][:, 3, :],
             sep_ids,
             features['n_honba'],
             sep_ids,
@@ -215,22 +208,22 @@ class MahjongEmbeddings(nn.Module):
             features['kui_ari'],
         ], dim=1)
 
-        hand_length = hand.size()[2]
+        hand_length = hand.size()[1]
         discard_length = features['discards'].size()[2]
         dora_length = features['doras'].size()[1]
         pad_token_type_ids = torch.full((batch_size, 1), self.pad_token_id, dtype=torch.long, device=device)
 
         token_types = torch.cat([
             pad_token_type_ids,
-            torch.full((batch_size, hand_length), self.who_0_hand_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, hand_length), self.hand_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, discard_length), self.who_0_discard_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, discard_length), self.discard_0_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, discard_length), self.who_1_discard_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, discard_length), self.discard_1_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, discard_length), self.who_2_discard_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, discard_length), self.discard_2_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, discard_length), self.who_3_discard_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, discard_length), self.discard_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
             features['melds'][0][:, 1] + self.meld_base_token_id,
             pad_token_type_ids,
@@ -240,60 +233,65 @@ class MahjongEmbeddings(nn.Module):
             pad_token_type_ids,
             features['melds'][3][:, 1] + self.meld_base_token_id,
             pad_token_type_ids,
-            torch.full((batch_size,  dora_length), self.dora_token_id, dtype=torch.long, device=device)
+            torch.full((batch_size, 4), self.action_meld_tiles_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.menzen_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.reach_state_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.n_reach_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.reach_ippatsu_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size,  dora_length), self.dora_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.dans_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.rates_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 4), self.scores_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.oya_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.n_honba_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.n_round_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.sanma_or_yonma_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.han_or_ton_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.aka_ari_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.kui_ari_token_id, dtype=torch.long, device=device)
         ], dim=1)
 
-        discard_pos_ids = torch.arange(discard_length + 1, dtype=torch.long, device=device)
-        discard_pos_ids = torch.cat([discard_pos_ids] * batch_size).reshape((batch_size, discard_length + 1))
+        discard_pos_ids = torch.arange(discard_length , dtype=torch.long, device=device)
+        discard_pos_ids = torch.cat([discard_pos_ids] * batch_size).reshape((batch_size, discard_length ))
         pos_ids = torch.zeros((x.size()[0], x.size()[1]), dtype=torch.long, device=device)
 
         # hand, discard, meld, dora
-        discard_start_idx = (hand_length + 2) * 4 + (discard_length + 1) * 0
-        discard_end_idx = discard_start_idx + (discard_length + 1)
+        discard_start_idx = hand_length + 2
+        discard_end_idx = discard_start_idx + discard_length
         pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
 
-        discard_start_idx = (hand_length + 2) * 4 + (discard_length + 1) * 1
-        discard_end_idx = discard_start_idx + (discard_length + 1)
+        discard_start_idx = hand_length + 2 + discard_length + 1
+        discard_end_idx = discard_start_idx + discard_length
         pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
 
-        discard_start_idx = (hand_length + 2) * 4 + (discard_length + 1) * 2
-        discard_end_idx = discard_start_idx + (discard_length + 1)
+        discard_start_idx = hand_length + 2 + (discard_length + 1) * 2
+        discard_end_idx = discard_start_idx + discard_length
         pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
 
-        discard_start_idx = (hand_length + 2) * 4 + (discard_length + 1) * 3
-        discard_end_idx = discard_start_idx + (discard_length + 1)
+        discard_start_idx = hand_length + 2 + (discard_length + 1) * 3
+        discard_end_idx = discard_start_idx + discard_length
         pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
 
         return x, token_types, pos_ids
 
 
     def forward(self, x, token_type_ids, pos_ids):
-        # device = x.device
-        # batch_size = x.size()[0]
-        # sep_embeddings = self.special_token_emb(self.sep_token_id, batch_size, device)
-
-        # hand_tile_embeddings = self.hand_tile_emb(x, sep_embeddings, batch_size, device)
-        # discards_tile_embeddings = self.discards_tile_emb(x, sep_embeddings, batch_size, device)
-        # melds_tile_embeddings= self.meld_emb(x)
-
-        # embeddings = torch.cat([
-        #     hand_tile_embeddings,
-        #     sep_embeddings,
-        #     discards_tile_embeddings,
-        #     sep_embeddings,
-        #     melds_tile_embeddings
-        # ], 1)
-        # embeddings = hand_tile_embeddings
-
         embeddings = self.tile_embeddings(x)
-
-        # batch_size = x.size()[0]
-        # seq_length = x.size()[1]
-        # device = x.device
-        # position_ids = torch.arange(seq_length, dtype=torch.long, device=device)
-        # position_ids = position_ids.unsqueeze(0).expand((batch_size, seq_length))
-        # position_embeddings = self.position_embeddings(position_ids)
-        # embeddings += position_embeddings
 
         embeddings += self.token_type_embeddings(token_type_ids)
         embeddings += self.position_embeddings(pos_ids)
@@ -489,7 +487,7 @@ class BertHead(nn.Module):
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(self, hidden_states):
-        h = self.dense0(hidden_states)
+        h = self.dense0(hidden_states[:, 0])
         h = self.act_fct(h)
         h = self.layer_norm(h)
         h = self.dense1(h)
@@ -497,20 +495,41 @@ class BertHead(nn.Module):
 
 
 class MahjongModelForPreTraining(nn.Module):
-    def __init__(self, config):
+    def __init__(
+        self, config, discard_config,
+        reach_config, chow_config, pong_config, kong_config
+    ):
         super().__init__()
         self.config = config
-        self.output_dim = 37
+        self.discard_config = discard_config
+        self.reach_config = reach_config
+        self.chow_config = chow_config
+        self.pong_config = pong_config
+        self.kong_config = kong_config
         self.embeddings = MahjongEmbeddings(config)
         self.bert_encoder = BertEncoder(config)
-        self.head = BertHead(config, self.output_dim)
+        self.discard_bert_encoder = BertEncoder(discard_config)
+        self.reach_bert_encoder = BertEncoder(reach_config)
+        self.chow_bert_encoder = BertEncoder(chow_config)
+        self.pong_bert_encoder = BertEncoder(pong_config)
+        self.kong_bert_encoder = BertEncoder(kong_config)
+        self.discard_output_dim = 37
+        self.reach_output_dim = 2
+        self.chow_output_dim = 2
+        self.pong_output_dim = 2
+        self.kong_output_dim = 2
+        self.discard_head = BertHead(config, self.discard_output_dim)
+        self.reach_head = BertHead(config, self.reach_output_dim)
+        self.chow_head = BertHead(config, self.chow_output_dim)
+        self.pong_head = BertHead(config, self.pong_output_dim)
+        self.kong_head = BertHead(config, self.kong_output_dim)
         self.loss_fct = torch.nn.CrossEntropyLoss()
         self.mlm_probability = 0.15
 
     def forward(
         self,
-        features,
-        hand,
+        x,
+        y,
         attention_mask=None,
         token_type_id=None,
         position_ids=None,
@@ -519,32 +538,75 @@ class MahjongModelForPreTraining(nn.Module):
         encoder_hidden_states=None,
         encoder_attention_mask=None
     ):
-
-        x, token_type_ids, pos_ids = self.embeddings.data2x(hand, features, hand.device)
-        # x, y = self.mask_tokens(
-        #     x,
-        #     mlm_probability=self.mlm_probability,
-        #     special_token_id_list=self.embeddings.special_token_id_list,
-        #     mask_token_id=self.embeddings.mask_token_id,
-        #     device=hand.device
-        # )
-        x, y = self.mask_hand_tokens(
-            x,
-            mask_token_id=self.embeddings.mask_token_id
-        )
+        x, token_type_ids, pos_ids = self.embeddings.data2x(x, y.device)
         embedding_output = self.embeddings(x, token_type_ids, pos_ids)
         bert_outputs = self.bert_encoder(
             embedding_output
         )
         last_hidden_state = bert_outputs[0]
-        logits = self.head(last_hidden_state)
-        loss = self.loss_fct(logits.view(-1, self.output_dim), y.view(-1))
-        batch_size = y.size()[0]
-        accuracy = self.accuracy_fct(
-            logits.view(-1, self.output_dim),
-            y.view(-1)
+        discard_bert_outputs = self.discard_bert_encoder(last_hidden_state)
+        discard_last_hidden_state = discard_bert_outputs[0]
+        discard_logits = self.discard_head(discard_last_hidden_state)
+
+        reach_bert_outputs = self.reach_bert_encoder(last_hidden_state)
+        reach_last_hidden_state = reach_bert_outputs[0]
+        reach_logits = self.reach_head(reach_last_hidden_state)
+
+        chow_bert_outputs = self.chow_bert_encoder(last_hidden_state)
+        chow_last_hidden_state = chow_bert_outputs[0]
+        chow_logits = self.chow_head(chow_last_hidden_state)
+
+        pong_bert_outputs = self.pong_bert_encoder(last_hidden_state)
+        pong_last_hidden_state = pong_bert_outputs[0]
+        pong_logits = self.pong_head(pong_last_hidden_state)
+
+        kong_bert_outputs = self.kong_bert_encoder(last_hidden_state)
+        kong_last_hidden_state = kong_bert_outputs[0]
+        kong_logits = self.kong_head(kong_last_hidden_state)
+
+
+
+        # print('      ')
+        # print(y.shape)
+        # print(y[:, 0 : 37].reshape(-1).shape)
+        # print(discard_logits.view(-1, self.discard_output_dim).shape)
+        # y = torch.tensor([
+        #     [1, 1, 1, 1, 1],
+        #     [1, 1, 1, 1, 1]
+        # ], dtype=torch.long, device=y.device)
+
+        loss = self.loss_fct(
+            discard_logits.view(-1, self.discard_output_dim),
+            y[:, 0].reshape(-1)
         )
-        return logits, loss, accuracy
+        loss += self.loss_fct(
+            reach_logits.view(-1, self.reach_output_dim),
+            y[:, 1].reshape(-1)
+        )
+        loss += self.loss_fct(
+            chow_logits.view(-1, self.chow_output_dim),
+            y[:, 2].reshape(-1)
+        )
+        loss += self.loss_fct(
+            pong_logits.view(-1, self.pong_output_dim),
+            y[:, 3].reshape(-1)
+        )
+        loss += self.loss_fct(
+            kong_logits.view(-1, self.kong_output_dim),
+            y[:, 4].reshape(-1)
+        )
+
+        accuracy = 0.0
+
+        return loss, accuracy
+
+        # loss = self.loss_fct(logits.view(-1, self.output_dim), y.view(-1))
+        # batch_size = y.size()[0]
+        # accuracy = self.accuracy_fct(
+        #     logits.view(-1, self.output_dim),
+        #     y.view(-1)
+        # )
+        # return logits, loss, accuracy
 
 
     def accuracy_fct(self, logits, y):
