@@ -596,9 +596,11 @@ class MahjongModelForPreTraining(nn.Module):
             y[:, 4].reshape(-1)
         )
 
-        accuracy = 0.0
+        return loss
 
-        return loss, accuracy
+        # accuracy = 0.0
+
+        # return loss, accuracy
 
         # loss = self.loss_fct(logits.view(-1, self.output_dim), y.view(-1))
         # batch_size = y.size()[0]
