@@ -564,17 +564,6 @@ class MahjongModelForPreTraining(nn.Module):
         kong_last_hidden_state = kong_bert_outputs[0]
         kong_logits = self.kong_head(kong_last_hidden_state)
 
-
-
-        # print('      ')
-        # print(y.shape)
-        # print(y[:, 0 : 37].reshape(-1).shape)
-        # print(discard_logits.view(-1, self.discard_output_dim).shape)
-        # y = torch.tensor([
-        #     [1, 1, 1, 1, 1],
-        #     [1, 1, 1, 1, 1]
-        # ], dtype=torch.long, device=y.device)
-
         loss = self.loss_fct(
             discard_logits.view(-1, self.discard_output_dim),
             y[:, 0].reshape(-1)
@@ -596,7 +585,35 @@ class MahjongModelForPreTraining(nn.Module):
             y[:, 4].reshape(-1)
         )
 
-        return loss
+        accuracy = torch.tensor([
+            self.accuracy_fct(
+                discard_logits.view(-1, self.discard_output_dim),
+                y[:, 0].reshape(-1),
+                self.discard_output_dim
+            ),
+            self.accuracy_fct(
+                reach_logits.view(-1, self.reach_output_dim),
+                y[:, 1].reshape(-1),
+                self.reach_output_dim
+            ),
+            self.accuracy_fct(
+                chow_logits.view(-1, self.chow_output_dim),
+                y[:, 2].reshape(-1),
+                self.chow_output_dim
+            ),
+            self.accuracy_fct(
+                pong_logits.view(-1, self.pong_output_dim),
+                y[:, 3].reshape(-1),
+                self.pong_output_dim
+            ),
+            self.accuracy_fct(
+                kong_logits.view(-1, self.kong_output_dim),
+                y[:, 4].reshape(-1),
+                self.kong_output_dim
+            ),
+        ], dtype=torch.float, device=y.device).mean()
+
+        return loss, accuracy
 
         # accuracy = 0.0
 
@@ -611,12 +628,20 @@ class MahjongModelForPreTraining(nn.Module):
         # return logits, loss, accuracy
 
 
-    def accuracy_fct(self, logits, y):
-        arg_sorted_logits = logits.argsort(descending=True)[:, :1]
-        one_hot = F.one_hot(arg_sorted_logits, num_classes=self.output_dim)
-        print(arg_sorted_logits[0])
-        print(one_hot[0])
-        return 1.0
+    def accuracy_fct(self, logits, y, n_classes):
+        # arg_sorted_logits = logits.argsort(descending=True)
+        _, pred = torch.max(logits, 1)
+        # arg_sorted_logits = logits.argsort(descending=True)[:, :1]
+        # one_hot = F.one_hot(arg_sorted_logits, num_classes=n_classes)
+        # print('-------------------------------')
+        # print(pred.shape, pred[0])
+        # print(y.shape, y[0])
+        corrects = pred == y
+        # print(pred, y, corrects.sum(), y.shape, y.shape[0])
+        # print(corrects, corrects.sum())
+        # print(y == -100)
+
+        return corrects.sum().item() / y.shape[0]
 
 
     def mask_hand_tokens(self, inputs, mask_token_id):

@@ -19,14 +19,17 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss = self.model(x, y)
+        loss, accuracy = self.model(x, y)
+        loss = loss.mean()
+        accuracy = accuracy.mean()
 
         self.state.batch_metrics.update({
-            'loss': loss
+            'loss': loss,
+            'accuracy' : accuracy
         })
 
         if self.state.is_train_loader:
-            loss.mean().backward()
+            loss.backward()
             self.state.optimizer.step()
             self.state.optimizer.zero_grad()
             self.state.scheduler.step()
