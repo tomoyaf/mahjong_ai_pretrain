@@ -593,9 +593,6 @@ class MahjongModelForPreTraining(nn.Module):
             y[:, 4].reshape(-1)
         )
 
-
-        # print(f'#                   {discard_logits.view(-1, self.discard_output_dim)[0]}, {y[:, 0].reshape(-1)[0]}')
-
         accuracy_info = {
             'discard_accuracy': self.accuracy_fct(
                 discard_logits.view(-1, self.discard_output_dim),
@@ -624,12 +621,51 @@ class MahjongModelForPreTraining(nn.Module):
             )
         }
         accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
+        accuracy = torch.tensor(accuracy, device=y.device, dtype=torch.float)
+        discard_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
+        reach_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
+        chow_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
+        pong_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
+        kong_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
 
-        return {
-            'loss': loss,
-            'accuracy': accuracy,
-            'accuracy_info': accuracy_info
-        }
+        if accuracy_info['discard_accuracy'][1] > 0:
+            discard_accuracy = torch.tensor(
+                accuracy_info['discard_accuracy'][0] / accuracy_info['discard_accuracy'][1],
+                device=y.device,
+                dtype=torch.float
+            )
+        if accuracy_info['reach_accuracy'][1] > 0:
+            reach_accuracy = torch.tensor(
+                accuracy_info['reach_accuracy'][0] / accuracy_info['reach_accuracy'][1],
+                device=y.device,
+                dtype=torch.float
+            )
+        if accuracy_info['chow_accuracy'][1] > 0:
+            chow_accuracy = torch.tensor(
+                accuracy_info['chow_accuracy'][0] / accuracy_info['chow_accuracy'][1],
+                device=y.device,
+                dtype=torch.float
+            )
+        if accuracy_info['pong_accuracy'][1] > 0:
+            pong_accuracy = torch.tensor(
+                accuracy_info['pong_accuracy'][0] / accuracy_info['pong_accuracy'][1],
+                device=y.device,
+                dtype=torch.float
+            )
+        if accuracy_info['kong_accuracy'][1] > 0:
+            kong_accuracy = torch.tensor(
+                accuracy_info['kong_accuracy'][0] / accuracy_info['kong_accuracy'][1],
+                device=y.device,
+                dtype=torch.float
+            )
+
+        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy
+
+        # return {
+        #     'loss': loss,
+        #     'accuracy': accuracy,
+        #     'accuracy_info': accuracy_info
+        # }
         # return loss, accuracy, accuracy_info
 
 

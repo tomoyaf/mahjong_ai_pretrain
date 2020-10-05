@@ -21,23 +21,25 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        res = self.model(x, y)
-        loss = res['loss']
-        accuracy = res['accuracy']
-        accuracy_info = res['accuracy_info']
-        # loss, accuracy, accuracy_info = self.model(x, y)
+        loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy = self.model(x, y)
         loss = loss.mean()
+        accuracy = accuracy.mean()
 
         update_dict = {
             'loss': loss,
             'accuracy': accuracy
         }
 
-        for k in accuracy_info:
-            n_corrects = accuracy_info[k][0]
-            n_enableds = accuracy_info[k][1]
-            if n_enableds > 0:
-                update_dict[k] = n_corrects / n_enableds
+        if discard_accuracy >= 0.0:
+            update_dict['discard_accuracy'] = discard_accuracy.mean()
+        if reach_accuracy >= 0.0:
+            update_dict['reach_accuracy'] = reach_accuracy.mean()
+        if chow_accuracy >= 0.0:
+            update_dict['chow_accuracy'] = chow_accuracy.mean()
+        if pong_accuracy >= 0.0:
+            update_dict['pong_accuracy'] = pong_accuracy.mean()
+        if kong_accuracy >= 0.0:
+            update_dict['kong_accuracy'] = kong_accuracy.mean()
 
         self.state.batch_metrics.update(update_dict)
 
