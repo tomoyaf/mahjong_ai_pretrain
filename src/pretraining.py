@@ -24,6 +24,11 @@ class CustomRunner(dl.Runner):
         loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy = self.model(x, y)
         loss = loss.mean()
         accuracy = accuracy.mean()
+        discard_accuracy = discard_accuracy.mean()
+        reach_accuracy = reach_accuracy.mean()
+        chow_accuracy = chow_accuracy.mean()
+        pong_accuracy = pong_accuracy.mean()
+        kong_accuracy = kong_accuracy.mean()
 
         update_dict = {
             'loss': loss,
