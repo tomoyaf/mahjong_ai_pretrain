@@ -18,33 +18,41 @@ def get_model():
     # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
     # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
     config.vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4
-    config.hidden_size = 180
-    config.num_hidden_layers = 6
+    config.hidden_size = 768
+    # config.hidden_size = 180
+    config.num_attention_heads = 12
+    config.num_hidden_layers = 4
+    # config.num_hidden_layers = 6
 
     discard_config = BertConfig()
     discard_config.vocab_size = config.vocab_size
     discard_config.hidden_size = config.hidden_size
-    discard_config.num_hidden_layers = 2
+    discard_config.num_attention_heads = config.num_attention_heads
+    discard_config.num_hidden_layers = 12
 
     reach_config = BertConfig()
     reach_config.vocab_size = config.vocab_size
     reach_config.hidden_size = config.hidden_size
-    reach_config.num_hidden_layers = 1
+    reach_config.num_attention_heads = config.num_attention_heads
+    reach_config.num_hidden_layers = 2
 
     chow_config = BertConfig()
     chow_config.vocab_size = config.vocab_size
     chow_config.hidden_size = config.hidden_size
-    chow_config.num_hidden_layers = 1
+    chow_config.num_attention_heads = config.num_attention_heads
+    chow_config.num_hidden_layers = 2
 
     pong_config = BertConfig()
     pong_config.vocab_size = config.vocab_size
     pong_config.hidden_size = config.hidden_size
-    pong_config.num_hidden_layers = 1
+    pong_config.num_attention_heads = config.num_attention_heads
+    pong_config.num_hidden_layers = 2
 
     kong_config = BertConfig()
     kong_config.vocab_size = config.vocab_size
     kong_config.hidden_size = config.hidden_size
-    kong_config.num_hidden_layers = 1
+    kong_config.num_attention_heads = config.num_attention_heads
+    kong_config.num_hidden_layers = 2
 
 
     return MahjongModelForPreTraining(
@@ -70,7 +78,7 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
 def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'chow', 'pong', 'kong']):
     path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     np.random.shuffle(path_list)
-    path_list = path_list[:10000]
+    # path_list = path_list[:10000]
 
     data_size = len(path_list)
     train_size = int(data_size * 0.8)
@@ -585,63 +593,47 @@ class MahjongModelForPreTraining(nn.Module):
             y[:, 4].reshape(-1)
         )
 
-        accuracy = torch.tensor([
-            self.accuracy_fct(
+
+        # print(f'#                   {discard_logits.view(-1, self.discard_output_dim)[0]}, {y[:, 0].reshape(-1)[0]}')
+
+        accuracy_info = {
+            'discard_accuracy': self.accuracy_fct(
                 discard_logits.view(-1, self.discard_output_dim),
                 y[:, 0].reshape(-1),
                 self.discard_output_dim
             ),
-            self.accuracy_fct(
+            'reach_accuracy': self.accuracy_fct(
                 reach_logits.view(-1, self.reach_output_dim),
                 y[:, 1].reshape(-1),
                 self.reach_output_dim
             ),
-            self.accuracy_fct(
+            'chow_accuracy': self.accuracy_fct(
                 chow_logits.view(-1, self.chow_output_dim),
                 y[:, 2].reshape(-1),
                 self.chow_output_dim
             ),
-            self.accuracy_fct(
+            'pong_accuracy': self.accuracy_fct(
                 pong_logits.view(-1, self.pong_output_dim),
                 y[:, 3].reshape(-1),
                 self.pong_output_dim
             ),
-            self.accuracy_fct(
+            'kong_accuracy': self.accuracy_fct(
                 kong_logits.view(-1, self.kong_output_dim),
                 y[:, 4].reshape(-1),
                 self.kong_output_dim
-            ),
-        ], dtype=torch.float, device=y.device).mean()
+            )
+        }
+        accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
 
-        return loss, accuracy
-
-        # accuracy = 0.0
-
-        # return loss, accuracy
-
-        # loss = self.loss_fct(logits.view(-1, self.output_dim), y.view(-1))
-        # batch_size = y.size()[0]
-        # accuracy = self.accuracy_fct(
-        #     logits.view(-1, self.output_dim),
-        #     y.view(-1)
-        # )
-        # return logits, loss, accuracy
+        return loss, accuracy, accuracy_info
 
 
     def accuracy_fct(self, logits, y, n_classes):
-        # arg_sorted_logits = logits.argsort(descending=True)
         _, pred = torch.max(logits, 1)
-        # arg_sorted_logits = logits.argsort(descending=True)[:, :1]
-        # one_hot = F.one_hot(arg_sorted_logits, num_classes=n_classes)
-        # print('-------------------------------')
-        # print(pred.shape, pred[0])
-        # print(y.shape, y[0])
         corrects = pred == y
-        # print(pred, y, corrects.sum(), y.shape, y.shape[0])
-        # print(corrects, corrects.sum())
-        # print(y == -100)
-
-        return corrects.sum().item() / y.shape[0]
+        enableds = (y != -100)
+        # print(f'{corrects.sum().item()}, {enableds.sum().item()}')
+        return corrects.sum().item(), enableds.sum().item()
 
 
     def mask_hand_tokens(self, inputs, mask_token_id):

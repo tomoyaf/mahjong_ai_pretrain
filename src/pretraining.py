@@ -11,6 +11,8 @@ import numpy as np
 
 from pretraining_model import get_model, get_optimizer, get_loaders
 
+import random
+
 
 class CustomRunner(dl.Runner):
 
@@ -19,14 +21,21 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy = self.model(x, y)
+        loss, accuracy, accuracy_info = self.model(x, y)
         loss = loss.mean()
-        accuracy = accuracy.mean()
 
-        self.state.batch_metrics.update({
+        update_dict = {
             'loss': loss,
-            'accuracy' : accuracy
-        })
+            'accuracy': accuracy
+        }
+
+        for k in accuracy_info:
+            n_corrects = accuracy_info[k][0]
+            n_enableds = accuracy_info[k][1]
+            if n_enableds > 0:
+                update_dict[k] = n_corrects / n_enableds
+
+        self.state.batch_metrics.update(update_dict)
 
         if self.state.is_train_loader:
             loss.backward()
@@ -40,6 +49,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--output_path', type=str, default='./output/pretrained')
 parser.add_argument('--n_classes', type=int, default=37)
 parser.add_argument('--n_epochs', type=int, default=3)
+# parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--lr', type=int, default=1e-4)
 parser.add_argument('--weight_decay', type=int, default=1e-2)
