@@ -21,7 +21,11 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy, accuracy_info = self.model(x, y)
+        res = self.model(x, y)
+        loss = res['loss']
+        accuracy = res['accuracy']
+        accuracy_info = res['accuracy_info']
+        # loss, accuracy, accuracy_info = self.model(x, y)
         loss = loss.mean()
 
         update_dict = {

@@ -625,7 +625,12 @@ class MahjongModelForPreTraining(nn.Module):
         }
         accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
 
-        return loss, accuracy, accuracy_info
+        return {
+            'loss': loss,
+            'accuracy': accuracy,
+            'accuracy_info': accuracy_info
+        }
+        # return loss, accuracy, accuracy_info
 
 
     def accuracy_fct(self, logits, y, n_classes):
