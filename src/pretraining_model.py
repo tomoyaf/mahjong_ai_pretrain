@@ -7,6 +7,7 @@ from transformers import BertLayer, BertConfig
 from glob import glob
 import numpy as np
 from transformers import AdamW, get_linear_schedule_with_warmup
+import catalyst
 
 from pretraining_data import PaifuDataset
 
@@ -23,35 +24,41 @@ def get_model():
     config.num_attention_heads = 12
     config.num_hidden_layers = 4
     # config.num_hidden_layers = 6
+    # config.max_position_embeddings = 260
 
     discard_config = BertConfig()
     discard_config.vocab_size = config.vocab_size
     discard_config.hidden_size = config.hidden_size
     discard_config.num_attention_heads = config.num_attention_heads
+    discard_config.max_position_embeddings = config.max_position_embeddings
     discard_config.num_hidden_layers = 12
 
     reach_config = BertConfig()
     reach_config.vocab_size = config.vocab_size
     reach_config.hidden_size = config.hidden_size
     reach_config.num_attention_heads = config.num_attention_heads
+    reach_config.max_position_embeddings = config.max_position_embeddings
     reach_config.num_hidden_layers = 2
 
     chow_config = BertConfig()
     chow_config.vocab_size = config.vocab_size
     chow_config.hidden_size = config.hidden_size
     chow_config.num_attention_heads = config.num_attention_heads
+    chow_config.max_position_embeddings = config.max_position_embeddings
     chow_config.num_hidden_layers = 2
 
     pong_config = BertConfig()
     pong_config.vocab_size = config.vocab_size
     pong_config.hidden_size = config.hidden_size
     pong_config.num_attention_heads = config.num_attention_heads
+    pong_config.max_position_embeddings = config.max_position_embeddings
     pong_config.num_hidden_layers = 2
 
     kong_config = BertConfig()
     kong_config.vocab_size = config.vocab_size
     kong_config.hidden_size = config.hidden_size
     kong_config.num_attention_heads = config.num_attention_heads
+    kong_config.max_position_embeddings = config.max_position_embeddings
     kong_config.num_hidden_layers = 2
 
 
@@ -165,7 +172,7 @@ class MahjongEmbeddings(nn.Module):
         sep_ids = torch.full((batch_size, 1), self.sep_token_id, dtype=torch.long, device=device)
         x = torch.cat([
             cls_ids,
-            hand,
+            hand, #14
             sep_ids,
             features['discards'][:, 0, :],
             sep_ids,
@@ -173,7 +180,7 @@ class MahjongEmbeddings(nn.Module):
             sep_ids,
             features['discards'][:, 2, :],
             sep_ids,
-            features['discards'][:, 3, :],
+            features['discards'][:, 3, :], # 100(25)
             sep_ids,
             features['melds'][0][:, 0],
             sep_ids,
@@ -181,10 +188,10 @@ class MahjongEmbeddings(nn.Module):
             sep_ids,
             features['melds'][2][:, 0],
             sep_ids,
-            features['melds'][3][:, 0],
+            features['melds'][3][:, 0], # 80(20)
             sep_ids,
-            features['action_meld_tiles'],
-            sep_ids,
+            features['action_meld_tiles'], # 4
+            sep_ids, # 49
             features['menzen'],
             sep_ids,
             features['reach_state'],
@@ -309,136 +316,6 @@ class MahjongEmbeddings(nn.Module):
         return embeddings
 
 
-    def pos_emb(self, l, batch_size, device):
-        ids = torch.arange(l, dtype=torch.long, device=device)
-        ids = torch.cat([ids] * batch_size).reshape((batch_size, l))
-        return self.position_embeddings(ids)
-
-
-    def token_type_emb(self, l, type_id, batch_size, device):
-        ids = torch.full((batch_size, l), fill_value=type_id, dtype=torch.long, device=device)
-        return self.token_type_embeddings(ids)
-
-
-    def special_token_emb(self, token_id, batch_size, device):
-        return self.tile_embeddings(
-            torch.full(
-                (batch_size, 1),
-                fill_value=token_id,
-                dtype=torch.long,
-                device=device
-            )
-        )
-
-
-    def hand_tile_emb(self, y, sep_embeddings, batch_size, device):
-        cls_embeddings = self.special_token_emb(self.cls_token_id, batch_size, device)
-        hand_tile_ids = y
-        who_0_tile_token_type_embeddings = self.token_type_emb(
-            14,
-            self.who_0_tile_token_id,
-            batch_size,
-            device
-        )
-        who_1_tile_token_type_embeddings = self.token_type_emb(
-            14,
-            self.who_1_tile_token_id,
-            batch_size,
-            device
-        )
-        who_2_tile_token_type_embeddings = self.token_type_emb(
-            14,
-            self.who_2_tile_token_id,
-            batch_size,
-            device
-        )
-        who_3_tile_token_type_embeddings = self.token_type_emb(
-            14,
-            self.who_3_tile_token_id,
-            batch_size,
-            device
-        )
-        hand_tile_embeddings = self.tile_embeddings(hand_tile_ids)
-        hand_tile_embeddings = torch.cat([
-            cls_embeddings,
-            hand_tile_embeddings[:, 0, :] + who_0_tile_token_type_embeddings,
-            sep_embeddings,
-            cls_embeddings,
-            hand_tile_embeddings[:, 1, :] + who_1_tile_token_type_embeddings,
-            sep_embeddings,
-            cls_embeddings,
-            hand_tile_embeddings[:, 2, :] + who_2_tile_token_type_embeddings,
-            sep_embeddings,
-            cls_embeddings,
-            hand_tile_embeddings[:, 3, :] + who_3_tile_token_type_embeddings,
-        ], dim=1)
-        return hand_tile_embeddings
-
-
-    def discards_tile_emb(self, x, sep_embeddings, batch_size, device):
-        discards_tile_ids = x['discards']
-        discards_tile_embeddings = self.tile_embeddings(discards_tile_ids)
-        discards_len = discards_tile_embeddings.size()[2]
-        position_embeddings = self.pos_emb(discards_len, batch_size, device)
-        discards_who_0_token_type_embeddings = self.token_type_emb(
-            discards_len,
-            self.who_0_tile_token_id,
-            batch_size,
-            device
-        )
-        discards_who_1_token_type_embeddings = self.token_type_emb(
-            discards_len,
-            self.who_1_tile_token_id,
-            batch_size,
-            device
-        )
-        discards_who_2_token_type_embeddings = self.token_type_emb(
-            discards_len,
-            self.who_2_tile_token_id,
-            batch_size,
-            device
-        )
-        discards_who_3_token_type_embeddings = self.token_type_emb(
-            discards_len,
-            self.who_3_tile_token_id,
-            batch_size,
-            device
-        )
-        discards_tile_embeddings = torch.cat([
-            discards_tile_embeddings[:, 0, :] + position_embeddings + discards_who_0_token_type_embeddings,
-            sep_embeddings,
-            discards_tile_embeddings[:, 1, :] + position_embeddings + discards_who_1_token_type_embeddings,
-            sep_embeddings,
-            discards_tile_embeddings[:, 2, :] + position_embeddings + discards_who_2_token_type_embeddings,
-            sep_embeddings,
-            discards_tile_embeddings[:, 3, :] + position_embeddings + discards_who_3_token_type_embeddings,
-        ], dim=1)
-        discards_tile_token_type_embeddings = self.token_type_emb(
-            discards_tile_embeddings.size()[1],
-            self.discards_tile_token_id,
-            batch_size,
-            device
-        )
-        return discards_tile_embeddings + discards_tile_token_type_embeddings
-
-
-    def meld_emb(self, x):
-        melds = x['melds']
-        tile_embeddings = []
-        type_embeddings = []
-
-        for i in range(4):
-            melds_ids = melds[i][:, 0, :]
-            melds_type_ids = melds[i][:, 1, :]
-            tile_embeddings.append(self.tile_embeddings(melds_ids))
-            type_embeddings.append(self.token_type_embeddings(melds_type_ids))
-
-        tile_embeddings_cat = torch.cat(tile_embeddings, dim=1)
-        type_embeddings_cat = torch.cat(type_embeddings, dim=1)
-        return tile_embeddings_cat + type_embeddings_cat
-
-
-
 class BertEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -536,7 +413,7 @@ class MahjongModelForPreTraining(nn.Module):
 
     def forward(
         self,
-        x,
+        x_features,
         y,
         attention_mask=None,
         token_type_id=None,
@@ -546,7 +423,7 @@ class MahjongModelForPreTraining(nn.Module):
         encoder_hidden_states=None,
         encoder_attention_mask=None
     ):
-        x, token_type_ids, pos_ids = self.embeddings.data2x(x, y.device)
+        x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, y.device)
         embedding_output = self.embeddings(x, token_type_ids, pos_ids)
         bert_outputs = self.bert_encoder(
             embedding_output
@@ -571,6 +448,8 @@ class MahjongModelForPreTraining(nn.Module):
         kong_bert_outputs = self.kong_bert_encoder(last_hidden_state)
         kong_last_hidden_state = kong_bert_outputs[0]
         kong_logits = self.kong_head(kong_last_hidden_state)
+
+        discard_logits = self.mask_discard_by_hand(discard_logits, x_features['hand'])
 
         loss = self.loss_fct(
             discard_logits.view(-1, self.discard_output_dim),
@@ -661,20 +540,24 @@ class MahjongModelForPreTraining(nn.Module):
 
         return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy
 
-        # return {
-        #     'loss': loss,
-        #     'accuracy': accuracy,
-        #     'accuracy_info': accuracy_info
-        # }
-        # return loss, accuracy, accuracy_info
-
 
     def accuracy_fct(self, logits, y, n_classes):
         _, pred = torch.max(logits, 1)
         corrects = pred == y
         enableds = (y != -100)
-        # print(f'{corrects.sum().item()}, {enableds.sum().item()}')
         return corrects.sum().item(), enableds.sum().item()
+
+    def mask_discard_by_hand(self, discard_logits, hand):
+        # print(f'discard_logits.shape: {discard_logits.shape}, hand.shape : {hand.shape}')
+        # discard_logits[hand] = -10
+        # print(hand)
+        one_hot = torch.nn.functional.one_hot(hand, num_classes=self.discard_output_dim + 1)
+        one_hot = one_hot[:, :, 1:]
+        one_hot = torch.sum(one_hot, axis=1)
+        discard_logits[one_hot < 1] = -1e10
+
+        # print(f'{discard_logits[0]}')
+        return discard_logits
 
 
     def mask_hand_tokens(self, inputs, mask_token_id):
