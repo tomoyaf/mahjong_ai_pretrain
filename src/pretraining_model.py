@@ -19,12 +19,12 @@ def get_model():
     # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
     # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
     config.vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4
-    config.hidden_size = 1024
+    config.hidden_size = 768
     # config.hidden_size = 768
     # config.hidden_size = 180
-    config.num_attention_heads = 16
+    config.num_attention_heads = 12
     # config.num_attention_heads = 12
-    config.num_hidden_layers = 24
+    config.num_hidden_layers = 12
     # config.num_hidden_layers = 4
     # config.num_hidden_layers = 6
     # config.max_position_embeddings = 260
