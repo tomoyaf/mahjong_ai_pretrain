@@ -73,6 +73,7 @@ print(f'device : {catalyst.utils.get_device()}')
 
 if __name__ == '__main__':
     model = get_model()
+    # print(model)
     train_loader, val_loader = get_loaders(args.batch_size)
     loaders = {
         'train': train_loader,

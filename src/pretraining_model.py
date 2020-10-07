@@ -22,6 +22,7 @@ def get_model():
     config.hidden_size = 768
     # config.hidden_size = 180
     config.num_attention_heads = 12
+    # config.num_hidden_layers = 2
     config.num_hidden_layers = 4
     # config.num_hidden_layers = 6
     # config.max_position_embeddings = 260
@@ -31,6 +32,7 @@ def get_model():
     discard_config.hidden_size = config.hidden_size
     discard_config.num_attention_heads = config.num_attention_heads
     discard_config.max_position_embeddings = config.max_position_embeddings
+    # discard_config.num_hidden_layers = 2
     discard_config.num_hidden_layers = 12
 
     reach_config = BertConfig()
@@ -409,6 +411,9 @@ class MahjongModelForPreTraining(nn.Module):
         self.pong_head = BertHead(config, self.pong_output_dim)
         self.kong_head = BertHead(config, self.kong_output_dim)
         self.loss_fct = torch.nn.CrossEntropyLoss()
+        self.chow_loss_fct = torch.nn.CrossEntropyLoss(
+            weight=torch.tensor([1.0, 9.0], device=catalyst.utils.get_device(), dtype=torch.float)
+        )
         self.mlm_probability = 0.15
 
     def forward(
@@ -459,7 +464,7 @@ class MahjongModelForPreTraining(nn.Module):
             reach_logits.view(-1, self.reach_output_dim),
             y[:, 1].reshape(-1)
         )
-        loss += self.loss_fct(
+        loss += self.chow_loss_fct(
             chow_logits.view(-1, self.chow_output_dim),
             y[:, 2].reshape(-1)
         )
