@@ -21,31 +21,34 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy = self.model(x, y)
-        # loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy = self.model(x, y)
+        loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score = self.model(x, y)
         loss = loss.mean()
         accuracy = accuracy.mean()
-        # discard_accuracy = discard_accuracy.mean()
-        # reach_accuracy = reach_accuracy.mean()
-        # chow_accuracy = chow_accuracy.mean()
-        # pong_accuracy = pong_accuracy.mean()
-        # kong_accuracy = kong_accuracy.mean()
+        discard_accuracy = discard_accuracy.mean()
+        reach_accuracy = reach_accuracy.mean()
+        chow_accuracy = chow_accuracy.mean()
+        pong_accuracy = pong_accuracy.mean()
+        kong_accuracy = kong_accuracy.mean()
+        chow_f_score = chow_f_score.mean()
 
         update_dict = {
             'loss': loss,
             'accuracy': accuracy
         }
 
-        # if discard_accuracy >= 0.0:
-        #     update_dict['discard_accuracy'] = discard_accuracy.mean()
-        # if reach_accuracy >= 0.0:
-        #     update_dict['reach_accuracy'] = reach_accuracy.mean()
-        # if chow_accuracy >= 0.0:
-        #     update_dict['chow_accuracy'] = chow_accuracy.mean()
-        # if pong_accuracy >= 0.0:
-        #     update_dict['pong_accuracy'] = pong_accuracy.mean()
-        # if kong_accuracy >= 0.0:
-        #     update_dict['kong_accuracy'] = kong_accuracy.mean()
+        if chow_f_score >= 0.0:
+            update_dict['chow_f_score'] = chow_f_score
+
+        if discard_accuracy >= 0.0:
+            update_dict['discard_accuracy'] = discard_accuracy.mean()
+        if reach_accuracy >= 0.0:
+            update_dict['reach_accuracy'] = reach_accuracy.mean()
+        if chow_accuracy >= 0.0:
+            update_dict['chow_accuracy'] = chow_accuracy.mean()
+        if pong_accuracy >= 0.0:
+            update_dict['pong_accuracy'] = pong_accuracy.mean()
+        if kong_accuracy >= 0.0:
+            update_dict['kong_accuracy'] = kong_accuracy.mean()
 
         self.state.batch_metrics.update(update_dict)
 
@@ -74,6 +77,7 @@ print(f'device : {catalyst.utils.get_device()}')
 
 if __name__ == '__main__':
     model = get_model()
+    # print(model)
     train_loader, val_loader = get_loaders(args.batch_size)
     loaders = {
         'train': train_loader,
