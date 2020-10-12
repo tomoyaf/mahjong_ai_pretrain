@@ -184,12 +184,6 @@ class MahjongEmbeddings(nn.Module):
             self.mask_token_id
         ]
 
-        self.pos_ids = torch.arange(
-            config.max_position_embeddings,
-            dtype=torch.long,
-            device=catalyst.utils.get_device()
-        )
-
     def data2x(self, features, device):
         who = features['who']
         hand = features['hand']
@@ -309,8 +303,13 @@ class MahjongEmbeddings(nn.Module):
         ], dim=1)
 
         seq_len = x.shape[1]
+        pos_ids = torch.arange(
+            config.max_position_embeddings,
+            dtype=torch.long,
+            device=catalyst.utils.get_device()
+        )
         pos_ids = torch.cat(
-            [self.pos_ids[:seq_len]] * batch_size
+            [pos_ids[:seq_len]] * batch_size
         )
         pos_ids = pos_ids.reshape((batch_size, seq_len))
         return x, token_types, pos_ids
