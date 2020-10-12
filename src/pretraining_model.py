@@ -66,12 +66,12 @@ def get_model():
 
 
     return MahjongModelForPreTraining(
-        config
-        # discard_config,
-        # reach_config,
-        # chow_config,
-        # pong_config,
-        # kong_config
+        config,
+        discard_config,
+        reach_config,
+        chow_config,
+        pong_config,
+        kong_config
     )
 
 
@@ -86,7 +86,7 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
 
 
 def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'chow', 'pong', 'kong']):
-    path_list = glob(f'./pickle/discard/paifu_2018_*.pickle')
+    path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     # path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     np.random.shuffle(path_list)
     # path_list = path_list[:10000]
@@ -111,7 +111,7 @@ class MahjongEmbeddings(nn.Module):
     def __init__(self, config, n_token_type=31):
         super(MahjongEmbeddings, self).__init__()
         print(config)
-        self.tile_embeddings = nn.Embedding(
+        self.symbol_embeddings = nn.Embedding(
             config.vocab_size,
             config.hidden_size,
             padding_idx=config.pad_token_id
@@ -317,8 +317,7 @@ class MahjongEmbeddings(nn.Module):
 
 
     def forward(self, x, token_type_ids, pos_ids):
-        embeddings = self.tile_embeddings(x)
-
+        embeddings = self.symbol_embeddings(x)
         embeddings += self.token_type_embeddings(token_type_ids)
         embeddings += self.position_embeddings(pos_ids)
 
@@ -392,37 +391,34 @@ class BertHead(nn.Module):
 
 class MahjongModelForPreTraining(nn.Module):
     def __init__(
-        self, config
-        # discard_config, reach_config, chow_config, pong_config, kong_config
+        self, config,
+        discard_config, reach_config, chow_config, pong_config, kong_config
     ):
         super().__init__()
         self.config = config
-        # self.discard_config = discard_config
-        # self.reach_config = reach_config
-        # self.chow_config = chow_config
-        # self.pong_config = pong_config
-        # self.kong_config = kong_config
+        self.discard_config = discard_config
+        self.reach_config = reach_config
+        self.chow_config = chow_config
+        self.pong_config = pong_config
+        self.kong_config = kong_config
         self.embeddings = MahjongEmbeddings(config)
         self.bert_encoder = BertEncoder(config)
-        # self.discard_bert_encoder = BertEncoder(discard_config)
-        # self.reach_bert_encoder = BertEncoder(reach_config)
-        # self.chow_bert_encoder = BertEncoder(chow_config)
-        # self.pong_bert_encoder = BertEncoder(pong_config)
-        # self.kong_bert_encoder = BertEncoder(kong_config)
+        self.discard_bert_encoder = BertEncoder(discard_config)
+        self.reach_bert_encoder = BertEncoder(reach_config)
+        self.chow_bert_encoder = BertEncoder(chow_config)
+        self.pong_bert_encoder = BertEncoder(pong_config)
+        self.kong_bert_encoder = BertEncoder(kong_config)
         self.discard_output_dim = 37
         self.reach_output_dim = 2
         self.chow_output_dim = 2
         self.pong_output_dim = 2
         self.kong_output_dim = 2
         self.discard_head = BertHead(config, self.discard_output_dim)
-        # self.reach_head = BertHead(config, self.reach_output_dim)
-        # self.chow_head = BertHead(config, self.chow_output_dim)
-        # self.pong_head = BertHead(config, self.pong_output_dim)
-        # self.kong_head = BertHead(config, self.kong_output_dim)
+        self.reach_head = BertHead(config, self.reach_output_dim)
+        self.chow_head = BertHead(config, self.chow_output_dim)
+        self.pong_head = BertHead(config, self.pong_output_dim)
+        self.kong_head = BertHead(config, self.kong_output_dim)
         self.loss_fct = torch.nn.CrossEntropyLoss()
-        # self.chow_loss_fct = torch.nn.CrossEntropyLoss(
-        #     weight=torch.tensor([1.0, 9.0], device=catalyst.utils.get_device(), dtype=torch.float)
-        # )
         self.mlm_probability = 0.15
 
     def forward(
@@ -443,26 +439,25 @@ class MahjongModelForPreTraining(nn.Module):
             embedding_output
         )
         last_hidden_state = bert_outputs[0]
-        # discard_bert_outputs = self.discard_bert_encoder(last_hidden_state)
-        # discard_last_hidden_state = discard_bert_outputs[0]
-        # discard_logits = self.discard_head(discard_last_hidden_state)
-        discard_logits = self.discard_head(last_hidden_state)
+        discard_bert_outputs = self.discard_bert_encoder(last_hidden_state)
+        discard_last_hidden_state = discard_bert_outputs[0]
+        discard_logits = self.discard_head(discard_last_hidden_state)
 
-        # reach_bert_outputs = self.reach_bert_encoder(last_hidden_state)
-        # reach_last_hidden_state = reach_bert_outputs[0]
-        # reach_logits = self.reach_head(reach_last_hidden_state)
+        reach_bert_outputs = self.reach_bert_encoder(last_hidden_state)
+        reach_last_hidden_state = reach_bert_outputs[0]
+        reach_logits = self.reach_head(reach_last_hidden_state)
 
-        # chow_bert_outputs = self.chow_bert_encoder(last_hidden_state)
-        # chow_last_hidden_state = chow_bert_outputs[0]
-        # chow_logits = self.chow_head(chow_last_hidden_state)
+        chow_bert_outputs = self.chow_bert_encoder(last_hidden_state)
+        chow_last_hidden_state = chow_bert_outputs[0]
+        chow_logits = self.chow_head(chow_last_hidden_state)
 
-        # pong_bert_outputs = self.pong_bert_encoder(last_hidden_state)
-        # pong_last_hidden_state = pong_bert_outputs[0]
-        # pong_logits = self.pong_head(pong_last_hidden_state)
+        pong_bert_outputs = self.pong_bert_encoder(last_hidden_state)
+        pong_last_hidden_state = pong_bert_outputs[0]
+        pong_logits = self.pong_head(pong_last_hidden_state)
 
-        # kong_bert_outputs = self.kong_bert_encoder(last_hidden_state)
-        # kong_last_hidden_state = kong_bert_outputs[0]
-        # kong_logits = self.kong_head(kong_last_hidden_state)
+        kong_bert_outputs = self.kong_bert_encoder(last_hidden_state)
+        kong_last_hidden_state = kong_bert_outputs[0]
+        kong_logits = self.kong_head(kong_last_hidden_state)
 
         discard_logits = self.mask_discard_by_hand(discard_logits, x_features['hand'])
 
@@ -470,60 +465,51 @@ class MahjongModelForPreTraining(nn.Module):
             discard_logits.view(-1, self.discard_output_dim),
             y[:, 0].reshape(-1)
         )
-        # loss = self.loss_fct(
-        #     discard_logits.view(-1, self.discard_output_dim),
-        #     y[:, 0].reshape(-1)
-        # )
-        # loss += self.loss_fct(
-        #     reach_logits.view(-1, self.reach_output_dim),
-        #     y[:, 1].reshape(-1)
-        # )
-        # loss += self.loss_fct(
-        #     chow_logits.view(-1, self.chow_output_dim),
-        #     y[:, 2].reshape(-1)
-        # )
-        # loss += self.loss_fct(
-        #     pong_logits.view(-1, self.pong_output_dim),
-        #     y[:, 3].reshape(-1)
-        # )
-        # loss += self.loss_fct(
-        #     kong_logits.view(-1, self.kong_output_dim),
-        #     y[:, 4].reshape(-1)
-        # )
-
-        # accuracy_info = {
-        #     'discard_accuracy': self.accuracy_fct(
-        #         discard_logits.view(-1, self.discard_output_dim),
-        #         y[:, 0].reshape(-1),
-        #         self.discard_output_dim
-        #     ),
-        #     'reach_accuracy': self.accuracy_fct(
-        #         reach_logits.view(-1, self.reach_output_dim),
-        #         y[:, 1].reshape(-1),
-        #         self.reach_output_dim
-        #     ),
-        #     'chow_accuracy': self.accuracy_fct(
-        #         chow_logits.view(-1, self.chow_output_dim),
-        #         y[:, 2].reshape(-1),
-        #         self.chow_output_dim
-        #     ),
-        #     'pong_accuracy': self.accuracy_fct(
-        #         pong_logits.view(-1, self.pong_output_dim),
-        #         y[:, 3].reshape(-1),
-        #         self.pong_output_dim
-        #     ),
-        #     'kong_accuracy': self.accuracy_fct(
-        #         kong_logits.view(-1, self.kong_output_dim),
-        #         y[:, 4].reshape(-1),
-        #         self.kong_output_dim
-        #     )
-        # }
-        accuracy = self.accuracy_fct(
-            discard_logits.view(-1, self.discard_output_dim),
-            y[:, 0].reshape(-1),
-            self.discard_output_dim
+        loss += self.loss_fct(
+            reach_logits.view(-1, self.reach_output_dim),
+            y[:, 1].reshape(-1)
         )
-        # accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
+        loss += self.loss_fct(
+            chow_logits.view(-1, self.chow_output_dim),
+            y[:, 2].reshape(-1)
+        )
+        loss += self.loss_fct(
+            pong_logits.view(-1, self.pong_output_dim),
+            y[:, 3].reshape(-1)
+        )
+        loss += self.loss_fct(
+            kong_logits.view(-1, self.kong_output_dim),
+            y[:, 4].reshape(-1)
+        )
+
+        accuracy_info = {
+            'discard_accuracy': self.accuracy_fct(
+                discard_logits.view(-1, self.discard_output_dim),
+                y[:, 0].reshape(-1),
+                self.discard_output_dim
+            ),
+            'reach_accuracy': self.accuracy_fct(
+                reach_logits.view(-1, self.reach_output_dim),
+                y[:, 1].reshape(-1),
+                self.reach_output_dim
+            ),
+            'chow_accuracy': self.accuracy_fct(
+                chow_logits.view(-1, self.chow_output_dim),
+                y[:, 2].reshape(-1),
+                self.chow_output_dim
+            ),
+            'pong_accuracy': self.accuracy_fct(
+                pong_logits.view(-1, self.pong_output_dim),
+                y[:, 3].reshape(-1),
+                self.pong_output_dim
+            ),
+            'kong_accuracy': self.accuracy_fct(
+                kong_logits.view(-1, self.kong_output_dim),
+                y[:, 4].reshape(-1),
+                self.kong_output_dim
+            )
+        }
+        accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
         accuracy = torch.tensor(accuracy, device=y.device, dtype=torch.float)
         discard_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
         reach_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
@@ -574,14 +560,11 @@ class MahjongModelForPreTraining(nn.Module):
         _, pred = torch.max(logits, 1)
         corrects = pred == y
         enableds = (y != -100)
-        # print(f'{logits}, {y}')
-        # print(f'{corrects}, {enableds}')
-        # print(f'accuracy: {corrects.sum().item()} / {enableds.sum().item()}')
-        if enableds.sum().item() == 0:
-            return 0.0
+        # if enableds.sum().item() == 0:
+        #     return 0.0
 
-        return corrects.sum().item() / enableds.sum().item()
-        # return corrects.sum().item(), enableds.sum().item()
+        # return corrects.sum().item() / enableds.sum().item()
+        return corrects.sum().item(), enableds.sum().item()
 
 
     def calc_n_pai_type(self, hand):
@@ -610,13 +593,13 @@ class MahjongModelForPreTraining(nn.Module):
         # print(f'tp:{tp}, fp:{fp}, fn:{fn}')
 
         if tp + fp == 0 or tp + fn == 0:
-            return -100
+            return -100.0
 
         precision = tp / (tp + fp)
         recall = tp / (tp + fn)
 
         if precision == 0 and recall == 0:
-            return 0
+            return 0.0
 
         return 2.0 * precision * recall / (precision + recall)
 
