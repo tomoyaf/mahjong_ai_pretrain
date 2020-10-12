@@ -37,7 +37,6 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         # action
         # Discard: 37, Reach:2 , Chow: 2, Pong: 2, Kong: 2
-        n = 37 + 2 + 2 + 2 + 2
         y = torch.full((5, ), -100, dtype=torch.long, device=device)
         x = {}
 
@@ -62,11 +61,6 @@ class PaifuDataset(torch.utils.data.Dataset):
         hand = state['hands'][state['action']['who']]
         hand = self.pais2ids(hand)
         x['hand'] = self.normalize_pai_list(hand, device)
-        # for i in range(len(x['hands'])):
-        #     x['hands'][i] = self.pais2ids(x['hands'][i])
-        #     x['hands'][i] = self.normalize_pai_list(x['hands'][i], device)
-
-        # discards
         x['discards'] = self.normalize_discards(state['discards'], device)
 
         # melds

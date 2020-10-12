@@ -25,7 +25,7 @@ def get_model():
     # config.num_hidden_layers = 2
     config.num_hidden_layers = 4
     # config.num_hidden_layers = 6
-    # config.max_position_embeddings = 260
+    config.max_position_embeddings = 260
 
     discard_config = BertConfig()
     discard_config.vocab_size = config.vocab_size
@@ -128,10 +128,26 @@ class MahjongEmbeddings(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # Special token id
-        self.sep_token_id = 37
-        self.cls_token_id = 38
-        self.mask_token_id = 39
+        self.sep_token_id = 127
+        self.cls_token_id = 128
+        self.mask_token_id = 129
         self.pad_token_id = config.pad_token_id
+
+        # Tile token offset
+        self.menzen_offset = 38
+        self.reach_state_offset = 40
+        self.n_reach_offset = 42
+        self.reach_ippatsu_offset = 45
+        self.dans_offset = 47
+        self.rates_offset = 68
+        self.scores_offset = 87
+        self.oya_offset = 100
+        self.n_honba_offset = 104
+        self.n_round_offset = 107
+        self.sanma_or_yonma_offset = 119
+        self.han_or_ton_offset = 121
+        self.aka_ari_offset = 123
+        self.kui_ari_offset = 125
 
         # Token type id
         self.hand_token_id = 0
@@ -166,12 +182,19 @@ class MahjongEmbeddings(nn.Module):
             self.mask_token_id
         ]
 
+        self.pos_ids = torch.arange(
+            config.max_position_embeddings,
+            dtype=torch.long,
+            device=catalyst.utils.get_device()
+        )
+
     def data2x(self, features, device):
         who = features['who']
         hand = features['hand']
         batch_size = hand.size()[0]
         cls_ids = torch.full((batch_size, 1), self.cls_token_id, dtype=torch.long, device=device)
         sep_ids = torch.full((batch_size, 1), self.sep_token_id, dtype=torch.long, device=device)
+
         x = torch.cat([
             cls_ids,
             hand, #14
@@ -194,35 +217,35 @@ class MahjongEmbeddings(nn.Module):
             sep_ids,
             features['action_meld_tiles'], # 4
             sep_ids, # 49
-            features['menzen'],
+            features['menzen'] + self.menzen_offset,
             sep_ids,
-            features['reach_state'],
+            features['reach_state'] + self.reach_state_offset,
             sep_ids,
-            features['n_reach'],
+            features['n_reach'] + self.n_reach_offset,
             sep_ids,
-            features['reach_ippatsu'],
+            features['reach_ippatsu'] + self.reach_ippatsu_offset,
             sep_ids,
             features['doras'],
             sep_ids,
-            features['dans'],
+            features['dans'] + self.dans_offset,
             sep_ids,
-            features['rates'],
+            features['rates'] + self.rates_offset,
             sep_ids,
-            features['scores'],
+            features['scores'] + self.scores_offset,
             sep_ids,
-            features['oya'],
+            features['oya'] + self.oya_offset,
             sep_ids,
-            features['n_honba'],
+            features['n_honba'] + self.n_honba_offset,
             sep_ids,
-            features['n_round'],
+            features['n_round'] + self.n_round_offset,
             sep_ids,
-            features['sanma_or_yonma'],
+            features['sanma_or_yonma'] + self.sanma_or_yonma_offset,
             sep_ids,
-            features['han_or_ton'],
+            features['han_or_ton'] + self.han_or_ton_offset,
             sep_ids,
-            features['aka_ari'],
+            features['aka_ari'] + self.aka_ari_offset,
             sep_ids,
-            features['kui_ari'],
+            features['kui_ari'] + self.kui_ari_offset,
         ], dim=1)
 
         hand_length = hand.size()[1]
@@ -283,27 +306,11 @@ class MahjongEmbeddings(nn.Module):
             torch.full((batch_size, 1), self.kui_ari_token_id, dtype=torch.long, device=device)
         ], dim=1)
 
-        discard_pos_ids = torch.arange(discard_length , dtype=torch.long, device=device)
-        discard_pos_ids = torch.cat([discard_pos_ids] * batch_size).reshape((batch_size, discard_length ))
-        pos_ids = torch.zeros((x.size()[0], x.size()[1]), dtype=torch.long, device=device)
-
-        # hand, discard, meld, dora
-        discard_start_idx = hand_length + 2
-        discard_end_idx = discard_start_idx + discard_length
-        pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
-
-        discard_start_idx = hand_length + 2 + discard_length + 1
-        discard_end_idx = discard_start_idx + discard_length
-        pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
-
-        discard_start_idx = hand_length + 2 + (discard_length + 1) * 2
-        discard_end_idx = discard_start_idx + discard_length
-        pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
-
-        discard_start_idx = hand_length + 2 + (discard_length + 1) * 3
-        discard_end_idx = discard_start_idx + discard_length
-        pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
-
+        seq_len = x.shape[1]
+        pos_ids = torch.cat(
+            [self.pos_ids[:seq_len]] * batch_size
+        )
+        pos_ids = pos_ids.reshape((batch_size, seq_len))
         return x, token_types, pos_ids
 
 
@@ -411,9 +418,9 @@ class MahjongModelForPreTraining(nn.Module):
         self.pong_head = BertHead(config, self.pong_output_dim)
         self.kong_head = BertHead(config, self.kong_output_dim)
         self.loss_fct = torch.nn.CrossEntropyLoss()
-        self.chow_loss_fct = torch.nn.CrossEntropyLoss(
-            weight=torch.tensor([1.0, 9.0], device=catalyst.utils.get_device(), dtype=torch.float)
-        )
+        # self.chow_loss_fct = torch.nn.CrossEntropyLoss(
+        #     weight=torch.tensor([1.0, 9.0], device=catalyst.utils.get_device(), dtype=torch.float)
+        # )
         self.mlm_probability = 0.15
 
     def forward(
@@ -464,7 +471,7 @@ class MahjongModelForPreTraining(nn.Module):
             reach_logits.view(-1, self.reach_output_dim),
             y[:, 1].reshape(-1)
         )
-        loss += self.chow_loss_fct(
+        loss += self.loss_fct(
             chow_logits.view(-1, self.chow_output_dim),
             y[:, 2].reshape(-1)
         )
@@ -543,7 +550,12 @@ class MahjongModelForPreTraining(nn.Module):
                 dtype=torch.float
             )
 
-        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy
+        chow_f_score = self.f_score_fct(
+            chow_logits.view(-1, self.chow_output_dim),
+            y[:, 2].reshape(-1)
+        )
+
+        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score
 
 
     def accuracy_fct(self, logits, y, n_classes):
@@ -551,6 +563,31 @@ class MahjongModelForPreTraining(nn.Module):
         corrects = pred == y
         enableds = (y != -100)
         return corrects.sum().item(), enableds.sum().item()
+
+
+    def f_score_fct(self, logits, y):
+        _, pred = torch.max(logits, 1)
+        true_positive = (pred == 1) & (y == 1)
+        false_positive = (pred == 1) & (y == 0)
+        false_negative = (pred == 0) & (y == 1)
+
+        tp = true_positive.sum().item()
+        fp = false_positive.sum().item()
+        fn = false_negative.sum().item()
+
+        # print(f'tp:{tp}, fp:{fp}, fn:{fn}')
+
+        if tp + fp == 0 or tp + fn == 0:
+            return -100
+
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+
+        if precision == 0 and recall == 0:
+            return 0
+
+        return 2.0 * precision * recall / (precision + recall)
+
 
     def mask_discard_by_hand(self, discard_logits, hand):
         # print(f'discard_logits.shape: {discard_logits.shape}, hand.shape : {hand.shape}')
@@ -563,25 +600,6 @@ class MahjongModelForPreTraining(nn.Module):
 
         # print(f'{discard_logits[0]}')
         return discard_logits
-
-
-    def mask_hand_tokens(self, inputs, mask_token_id):
-        my_hand_idx = np.random.randint(0, 4)
-        hand_len = 2 + 14
-        batch_size = inputs.size()[0]
-        device = inputs.device
-
-        labels = inputs.clone()
-
-        masked_indices = torch.zeros(labels.shape, device=device)
-        masked_indices[:, : 4 * hand_len] = 1.0
-        masked_indices[:, my_hand_idx * hand_len : (my_hand_idx + 1) * hand_len] = 0.0
-        masked_indices = masked_indices.bool()
-
-        labels[~masked_indices] = -100
-        inputs[masked_indices] = mask_token_id
-
-        return inputs, labels
 
 
     def mask_tokens(

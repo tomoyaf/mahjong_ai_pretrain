@@ -21,7 +21,7 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy = self.model(x, y)
+        loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score = self.model(x, y)
         loss = loss.mean()
         accuracy = accuracy.mean()
         discard_accuracy = discard_accuracy.mean()
@@ -29,11 +29,15 @@ class CustomRunner(dl.Runner):
         chow_accuracy = chow_accuracy.mean()
         pong_accuracy = pong_accuracy.mean()
         kong_accuracy = kong_accuracy.mean()
+        chow_f_score = chow_f_score.mean()
 
         update_dict = {
             'loss': loss,
             'accuracy': accuracy
         }
+
+        if chow_f_score >= 0.0:
+            update_dict['chow_f_score'] = chow_f_score
 
         if discard_accuracy >= 0.0:
             update_dict['discard_accuracy'] = discard_accuracy.mean()
