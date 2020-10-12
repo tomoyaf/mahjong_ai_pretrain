@@ -548,12 +548,13 @@ class MahjongModelForPreTraining(nn.Module):
                 dtype=torch.float
             )
 
-        chow_f_score = self.f_score_fct(
-            chow_logits.view(-1, self.chow_output_dim),
-            y[:, 2].reshape(-1)
-        )
+        # chow_f_score = self.f_score_fct(
+        #     chow_logits.view(-1, self.chow_output_dim),
+        #     y[:, 2].reshape(-1)
+        # )
 
-        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score
+        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy
+        # return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score
 
 
     def accuracy_fct(self, logits, y, n_classes):
