@@ -111,6 +111,7 @@ class MahjongEmbeddings(nn.Module):
     def __init__(self, config, n_token_type=31):
         super(MahjongEmbeddings, self).__init__()
         print(config)
+        self.config = config
         self.symbol_embeddings = nn.Embedding(
             config.vocab_size,
             config.hidden_size,
@@ -304,7 +305,7 @@ class MahjongEmbeddings(nn.Module):
 
         seq_len = x.shape[1]
         pos_ids = torch.arange(
-            config.max_position_embeddings,
+            self.config.max_position_embeddings,
             dtype=torch.long,
             device=catalyst.utils.get_device()
         )
