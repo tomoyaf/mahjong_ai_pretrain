@@ -525,7 +525,7 @@ class MahjongModelForPreTraining(nn.Module):
         _, pred = torch.max(logits, 1)
         corrects = pred == y
         enableds = (y != -100)
-        return corrects.sum().item() / enableds.sum().item()
+        return torch.tensor(corrects.sum().item() / enableds.sum().item(), dtype=torch.float, device=y.device)
 
     def calc_n_pai_type(self, hand):
         one_hot = torch.nn.functional.one_hot(
