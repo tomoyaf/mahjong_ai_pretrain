@@ -40,9 +40,25 @@ class PaifuDataset(torch.utils.data.Dataset):
         y = torch.full((5, ), -100, dtype=torch.long, device=device)
         x = {}
 
+
+        # hand
+        hand = state['hands'][state['action']['who']]
+        hand = self.pais2ids(hand)
+        x['hand'] = self.normalize_pai_list(hand, device)
+        x['discards'] = self.normalize_discards(state['discards'], device)
+
         if state['action']['type'] == 'discard':
-            discarded_idx = self.pai_list.index(state['action']['tile'])
-            y[0] = discarded_idx
+            # discarded_idx = self.pai_list.index(state['action']['tile'])
+            # y[0] = discarded_idx
+            y[0] = state['hands'][state['action']['who']].index(state['action']['tile'])
+            # found_count = 0
+            # for i, tile in enumerate(state['hands'][state['action']['who']]):
+            #     if tile == state['action']['tile']:
+            #         found_count += 1
+            #         y[0, found_count] = i
+
+            # print(y[0], state['hands'][state['action']['who']], state['action']['tile'])
+
 
         elif state['action']['type'] == 'reach':
             y[1] = state['action']['p']
@@ -55,13 +71,6 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         elif state['action']['type'] == 'kong':
             y[4] = state['action']['p']
-
-
-        # hand
-        hand = state['hands'][state['action']['who']]
-        hand = self.pais2ids(hand)
-        x['hand'] = self.normalize_pai_list(hand, device)
-        x['discards'] = self.normalize_discards(state['discards'], device)
 
         # melds
         x['melds'] = [

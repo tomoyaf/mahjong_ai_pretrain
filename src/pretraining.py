@@ -21,33 +21,12 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy = self.model(x, y)
-        loss = loss.mean()
-        accuracy = accuracy.mean()
-        discard_accuracy = discard_accuracy.mean()
-        reach_accuracy = reach_accuracy.mean()
-        chow_accuracy = chow_accuracy.mean()
-        pong_accuracy = pong_accuracy.mean()
-        kong_accuracy = kong_accuracy.mean()
+        loss, accuracy, enabled_model_name = self.model(x, y)
 
         update_dict = {
-            'loss': loss,
-            'accuracy': accuracy
+            f'{enabled_model_name}:loss': loss.mean(),
+            f'{enabled_model_name}:accuracy': accuracy
         }
-
-        # if chow_f_score >= 0.0:
-        #     update_dict['chow_f_score'] = chow_f_score
-
-        if discard_accuracy >= 0.0:
-            update_dict['discard_accuracy'] = discard_accuracy.mean()
-        if reach_accuracy >= 0.0:
-            update_dict['reach_accuracy'] = reach_accuracy.mean()
-        if chow_accuracy >= 0.0:
-            update_dict['chow_accuracy'] = chow_accuracy.mean()
-        if pong_accuracy >= 0.0:
-            update_dict['pong_accuracy'] = pong_accuracy.mean()
-        if kong_accuracy >= 0.0:
-            update_dict['kong_accuracy'] = kong_accuracy.mean()
 
         self.state.batch_metrics.update(update_dict)
 
@@ -62,22 +41,23 @@ logger = logging.getLogger(__name__)
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_path', type=str, default='./output/pretrained')
 parser.add_argument('--n_classes', type=int, default=37)
-parser.add_argument('--n_epochs', type=int, default=3)
-# parser.add_argument('--batch_size', type=int, default=3)
-parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--n_epochs', type=int, default=2)
+parser.add_argument('--batch_size', type=int, default=8)
+# parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--lr', type=int, default=1e-4)
 parser.add_argument('--weight_decay', type=int, default=1e-2)
 parser.add_argument('--seed', type=int, default=2434)
+parser.add_argument('--model_name', type=str)
 args = parser.parse_args()
 
 set_seed(args.seed)
 
 print(f'device : {catalyst.utils.get_device()}')
+print(f'model : {args.model_name}')
 
 if __name__ == '__main__':
-    model = get_model()
-    # print(model)
-    train_loader, val_loader = get_loaders(args.batch_size)
+    model = get_model(args.model_name)
+    train_loader, val_loader = get_loaders(args.batch_size, args.model_name)
     loaders = {
         'train': train_loader,
         'valid': val_loader
@@ -90,7 +70,9 @@ if __name__ == '__main__':
         n_epochs=args.n_epochs
     )
 
-    runner = CustomRunner(device=catalyst.utils.get_device())
+    runner = CustomRunner(
+        device=catalyst.utils.get_device()
+    )
     runner.train(
         model=model,
         optimizer=optimizer,

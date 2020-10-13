@@ -12,19 +12,21 @@ import catalyst
 from pretraining_data import PaifuDataset
 
 
-def get_model():
+def get_model(enable_model_name):
     config = BertConfig()
     # tile(37), menzen(2), reach_state(2), n_reach(3),
     # reach_ippatsu(2), dans(21), rates(19), oya(4),
     # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
     # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
     config.vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4
-    config.hidden_size = 768
+    config.hidden_size = 1024
+    # config.hidden_size = 96
     # config.hidden_size = 768
     # config.hidden_size = 180
-    config.num_attention_heads = 12
+    config.num_attention_heads = 16
+    # config.num_attention_heads = 8
     # config.num_hidden_layers = 2
-    config.num_hidden_layers = 4
+    # config.num_hidden_layers = 2
     # config.num_hidden_layers = 6
     config.max_position_embeddings = 260
 
@@ -34,35 +36,35 @@ def get_model():
     discard_config.num_attention_heads = config.num_attention_heads
     discard_config.max_position_embeddings = config.max_position_embeddings
     # discard_config.num_hidden_layers = 2
-    discard_config.num_hidden_layers = 12
+    discard_config.num_hidden_layers = 24
 
     reach_config = BertConfig()
     reach_config.vocab_size = config.vocab_size
     reach_config.hidden_size = config.hidden_size
     reach_config.num_attention_heads = config.num_attention_heads
     reach_config.max_position_embeddings = config.max_position_embeddings
-    reach_config.num_hidden_layers = 2
+    reach_config.num_hidden_layers = 6
 
     chow_config = BertConfig()
     chow_config.vocab_size = config.vocab_size
     chow_config.hidden_size = config.hidden_size
     chow_config.num_attention_heads = config.num_attention_heads
     chow_config.max_position_embeddings = config.max_position_embeddings
-    chow_config.num_hidden_layers = 2
+    chow_config.num_hidden_layers = 6
 
     pong_config = BertConfig()
     pong_config.vocab_size = config.vocab_size
     pong_config.hidden_size = config.hidden_size
     pong_config.num_attention_heads = config.num_attention_heads
     pong_config.max_position_embeddings = config.max_position_embeddings
-    pong_config.num_hidden_layers = 2
+    pong_config.num_hidden_layers = 6
 
     kong_config = BertConfig()
     kong_config.vocab_size = config.vocab_size
     kong_config.hidden_size = config.hidden_size
     kong_config.num_attention_heads = config.num_attention_heads
     kong_config.max_position_embeddings = config.max_position_embeddings
-    kong_config.num_hidden_layers = 2
+    kong_config.num_hidden_layers = 6
 
 
     return MahjongModelForPreTraining(
@@ -71,7 +73,8 @@ def get_model():
         reach_config,
         chow_config,
         pong_config,
-        kong_config
+        kong_config,
+        enable_model_name
     )
 
 
@@ -86,8 +89,8 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
 
 
 def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'chow', 'pong', 'kong']):
-    path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     # path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
+    path_list = glob(f'./pickle/discard/paifu_2018_*.pickle')
     np.random.shuffle(path_list)
     # path_list = path_list[:10000]
 
@@ -383,19 +386,32 @@ class BertHead(nn.Module):
 
     def forward(self, hidden_states):
         h = self.dense0(hidden_states[:, 0])
-        # h = self.act_fct(h)
+        h = self.act_fct(h)
         h = self.layer_norm(h)
         h = self.dense1(h)
+        return h
+
+class DiscardHead(nn.Module):
+    def __init__(self, config, output_dim):
+        super().__init__()
+        self.config = config
+        self.n_hands = 14
+        self.dense = nn.Linear(config.hidden_size, 1)
+
+    def forward(self, hidden_states):
+        h = self.dense(hidden_states[:, 1:self.n_hands+1, :])
         return h
 
 
 class MahjongModelForPreTraining(nn.Module):
     def __init__(
         self, config,
-        discard_config, reach_config, chow_config, pong_config, kong_config
+        discard_config, reach_config, chow_config, pong_config, kong_config,
+        enabled_model_name
     ):
         super().__init__()
         self.config = config
+        self.enabled_model_name = enabled_model_name
         self.discard_config = discard_config
         self.reach_config = reach_config
         self.chow_config = chow_config
@@ -408,17 +424,21 @@ class MahjongModelForPreTraining(nn.Module):
         self.chow_bert_encoder = BertEncoder(chow_config)
         self.pong_bert_encoder = BertEncoder(pong_config)
         self.kong_bert_encoder = BertEncoder(kong_config)
-        self.discard_output_dim = 37
+        # self.discard_output_dim = 37
+        self.discard_output_dim = 14
         self.reach_output_dim = 2
         self.chow_output_dim = 2
         self.pong_output_dim = 2
         self.kong_output_dim = 2
-        self.discard_head = BertHead(config, self.discard_output_dim)
+        # self.discard_head = BertHead(config, self.discard_output_dim)
+        self.discard_head = DiscardHead(config, self.discard_output_dim)
         self.reach_head = BertHead(config, self.reach_output_dim)
         self.chow_head = BertHead(config, self.chow_output_dim)
         self.pong_head = BertHead(config, self.pong_output_dim)
         self.kong_head = BertHead(config, self.kong_output_dim)
         self.loss_fct = torch.nn.CrossEntropyLoss()
+        self.discard_loss_fct = torch.nn.CrossEntropyLoss()
+        # self.discard_loss_fct = torch.nn.BCEWithLogitsLoss()
         self.mlm_probability = 0.15
 
     def forward(
@@ -435,138 +455,81 @@ class MahjongModelForPreTraining(nn.Module):
     ):
         x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, y.device)
         embedding_output = self.embeddings(x, token_type_ids, pos_ids)
-        bert_outputs = self.bert_encoder(
-            embedding_output
-        )
-        last_hidden_state = bert_outputs[0]
-        discard_bert_outputs = self.discard_bert_encoder(last_hidden_state)
-        discard_last_hidden_state = discard_bert_outputs[0]
-        discard_logits = self.discard_head(discard_last_hidden_state)
 
-        reach_bert_outputs = self.reach_bert_encoder(last_hidden_state)
-        reach_last_hidden_state = reach_bert_outputs[0]
-        reach_logits = self.reach_head(reach_last_hidden_state)
-
-        chow_bert_outputs = self.chow_bert_encoder(last_hidden_state)
-        chow_last_hidden_state = chow_bert_outputs[0]
-        chow_logits = self.chow_head(chow_last_hidden_state)
-
-        pong_bert_outputs = self.pong_bert_encoder(last_hidden_state)
-        pong_last_hidden_state = pong_bert_outputs[0]
-        pong_logits = self.pong_head(pong_last_hidden_state)
-
-        kong_bert_outputs = self.kong_bert_encoder(last_hidden_state)
-        kong_last_hidden_state = kong_bert_outputs[0]
-        kong_logits = self.kong_head(kong_last_hidden_state)
-
-        discard_logits = self.mask_discard_by_hand(discard_logits, x_features['hand'])
-
-        loss = self.loss_fct(
-            discard_logits.view(-1, self.discard_output_dim),
-            y[:, 0].reshape(-1)
-        )
-        loss += self.loss_fct(
-            reach_logits.view(-1, self.reach_output_dim),
-            y[:, 1].reshape(-1)
-        )
-        loss += self.loss_fct(
-            chow_logits.view(-1, self.chow_output_dim),
-            y[:, 2].reshape(-1)
-        )
-        loss += self.loss_fct(
-            pong_logits.view(-1, self.pong_output_dim),
-            y[:, 3].reshape(-1)
-        )
-        loss += self.loss_fct(
-            kong_logits.view(-1, self.kong_output_dim),
-            y[:, 4].reshape(-1)
-        )
-
-        accuracy_info = {
-            'discard_accuracy': self.accuracy_fct(
-                discard_logits.view(-1, self.discard_output_dim),
+        if self.enabled_model_name == 'discard':
+            bert_outputs = self.discard_bert_encoder(embedding_output)
+            last_hidden_state = bert_outputs[0]
+            logits = self.discard_head(last_hidden_state)
+            loss = self.discard_loss_fct(
+                logits.view(-1, self.discard_output_dim),
+                y[:, 0].reshape(-1)
+            )
+            accuracy = self.accuracy_fct(
+                logits.view(-1, self.discard_output_dim),
                 y[:, 0].reshape(-1),
                 self.discard_output_dim
-            ),
-            'reach_accuracy': self.accuracy_fct(
-                reach_logits.view(-1, self.reach_output_dim),
+            )
+        elif self.enabled_model_name == 'reach':
+            bert_outputs = self.reach_bert_encoder(embedding_output)
+            last_hidden_state = bert_outputs[0]
+            logits = self.reach_head(last_hidden_state)
+            loss = self.loss_fct(
+                logits.view(-1, self.reach_output_dim),
+                y[:, 1].reshape(-1)
+            )
+            accuracy = self.accuracy_fct(
+                logits.view(-1, self.reach_output_dim),
                 y[:, 1].reshape(-1),
                 self.reach_output_dim
-            ),
-            'chow_accuracy': self.accuracy_fct(
-                chow_logits.view(-1, self.chow_output_dim),
+            )
+        elif self.enabled_model_name == 'chow':
+            bert_outputs = self.chow_bert_encoder(embedding_output)
+            last_hidden_state = bert_outputs[0]
+            logits = self.chow_head(last_hidden_state)
+            loss = self.loss_fct(
+                logits.view(-1, self.chow_output_dim),
+                y[:, 2].reshape(-1)
+            )
+            accuracy = self.accuracy_fct(
+                logits.view(-1, self.chow_output_dim),
                 y[:, 2].reshape(-1),
                 self.chow_output_dim
-            ),
-            'pong_accuracy': self.accuracy_fct(
-                pong_logits.view(-1, self.pong_output_dim),
+            )
+        elif self.enabled_model_name == 'pong':
+            bert_outputs = self.pong_bert_encoder(embedding_output)
+            last_hidden_state = bert_outputs[0]
+            logits = self.pong_head(last_hidden_state)
+            loss = self.loss_fct(
+                logits.view(-1, self.pong_output_dim),
+                y[:, 3].reshape(-1)
+            )
+            accuracy = self.accuracy_fct(
+                logits.view(-1, self.pong_output_dim),
                 y[:, 3].reshape(-1),
                 self.pong_output_dim
-            ),
-            'kong_accuracy': self.accuracy_fct(
-                kong_logits.view(-1, self.kong_output_dim),
+            )
+        elif self.enabled_model_name == 'kong':
+            bert_outputs = self.kong_bert_encoder(embedding_output)
+            last_hidden_state = bert_outputs[0]
+            logits = self.kong_head(last_hidden_state)
+            loss = self.loss_fct(
+                logits.view(-1, self.kong_output_dim),
+                y[:, 4].reshape(-1)
+            )
+            accuracy = self.accuracy_fct(
+                logits.view(-1, self.kong_output_dim),
                 y[:, 4].reshape(-1),
                 self.kong_output_dim
             )
-        }
-        accuracy = sum([accuracy_info[k][0] for k in accuracy_info]) / sum([accuracy_info[k][1] for k in accuracy_info])
-        accuracy = torch.tensor(accuracy, device=y.device, dtype=torch.float)
-        discard_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
-        reach_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
-        chow_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
-        pong_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
-        kong_accuracy = torch.tensor(-100, device=y.device, dtype=torch.float)
 
-        if accuracy_info['discard_accuracy'][1] > 0:
-            discard_accuracy = torch.tensor(
-                accuracy_info['discard_accuracy'][0] / accuracy_info['discard_accuracy'][1],
-                device=y.device,
-                dtype=torch.float
-            )
-        if accuracy_info['reach_accuracy'][1] > 0:
-            reach_accuracy = torch.tensor(
-                accuracy_info['reach_accuracy'][0] / accuracy_info['reach_accuracy'][1],
-                device=y.device,
-                dtype=torch.float
-            )
-        if accuracy_info['chow_accuracy'][1] > 0:
-            chow_accuracy = torch.tensor(
-                accuracy_info['chow_accuracy'][0] / accuracy_info['chow_accuracy'][1],
-                device=y.device,
-                dtype=torch.float
-            )
-        if accuracy_info['pong_accuracy'][1] > 0:
-            pong_accuracy = torch.tensor(
-                accuracy_info['pong_accuracy'][0] / accuracy_info['pong_accuracy'][1],
-                device=y.device,
-                dtype=torch.float
-            )
-        if accuracy_info['kong_accuracy'][1] > 0:
-            kong_accuracy = torch.tensor(
-                accuracy_info['kong_accuracy'][0] / accuracy_info['kong_accuracy'][1],
-                device=y.device,
-                dtype=torch.float
-            )
-
-        # chow_f_score = self.f_score_fct(
-        #     chow_logits.view(-1, self.chow_output_dim),
-        #     y[:, 2].reshape(-1)
-        # )
-
-        return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy
-        # return loss, accuracy, discard_accuracy, reach_accuracy, chow_accuracy, pong_accuracy, kong_accuracy, chow_f_score
+        return loss, accuracy, self.enabled_model_name
 
 
     def accuracy_fct(self, logits, y, n_classes):
         _, pred = torch.max(logits, 1)
         corrects = pred == y
         enableds = (y != -100)
-        # if enableds.sum().item() == 0:
-        #     return 0.0
-
-        # return corrects.sum().item() / enableds.sum().item()
-        return corrects.sum().item(), enableds.sum().item()
-
+        return corrects.sum().item() / enableds.sum().item()
 
     def calc_n_pai_type(self, hand):
         one_hot = torch.nn.functional.one_hot(
