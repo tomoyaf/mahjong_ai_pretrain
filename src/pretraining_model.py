@@ -19,15 +19,11 @@ def get_model(enable_model_name):
     # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
     # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
     config.vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4
-    config.hidden_size = 1024
-    # config.hidden_size = 96
-    # config.hidden_size = 768
-    # config.hidden_size = 180
-    config.num_attention_heads = 16
+    # config.hidden_size = 1024
+    config.hidden_size = 768
+    config.num_attention_heads = 12
     # config.num_attention_heads = 8
     # config.num_hidden_layers = 2
-    # config.num_hidden_layers = 2
-    # config.num_hidden_layers = 6
     config.max_position_embeddings = 260
 
     discard_config = BertConfig()
@@ -36,7 +32,7 @@ def get_model(enable_model_name):
     discard_config.num_attention_heads = config.num_attention_heads
     discard_config.max_position_embeddings = config.max_position_embeddings
     # discard_config.num_hidden_layers = 2
-    discard_config.num_hidden_layers = 24
+    discard_config.num_hidden_layers = 12
 
     reach_config = BertConfig()
     reach_config.vocab_size = config.vocab_size
@@ -88,9 +84,9 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
     return optimizer, lr_scheduler
 
 
-def get_loaders(batch_size=8, num_workers=8, model_types=['discard', 'reach', 'chow', 'pong', 'kong']):
+def get_loaders(batch_size, model_name):
     # path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
-    path_list = glob(f'./pickle/discard/paifu_2018_*.pickle')
+    path_list = glob(f'./pickle/{model_name}/paifu_2018_*.pickle')
     np.random.shuffle(path_list)
     # path_list = path_list[:10000]
 
