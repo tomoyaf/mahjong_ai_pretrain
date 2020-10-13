@@ -23,9 +23,16 @@ class CustomRunner(dl.Runner):
         x, y = batch
         loss, accuracy, enabled_model_name = self.model(x, y)
 
+        print(loss.shape, accuracy.shape)
+
+        loss = loss.mean()
+        accuracy = accuracy.mean()
+
+        print(loss.shape, accuracy.shape)
+
         update_dict = {
-            f'{enabled_model_name}:loss': loss.mean(),
-            f'{enabled_model_name}:accuracy': accuracy.mean()
+            f'{enabled_model_name}:loss': loss,
+            f'{enabled_model_name}:accuracy': accuracy
         }
 
         self.state.batch_metrics.update(update_dict)
