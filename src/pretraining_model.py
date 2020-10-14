@@ -519,7 +519,7 @@ class MahjongModelForPreTraining(nn.Module):
                 self.kong_output_dim
             )
 
-        return loss, accuracy, self.enabled_model_name
+        return loss, accuracy
 
 
     def accuracy_fct(self, logits, y, n_classes):

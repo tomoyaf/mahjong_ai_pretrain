@@ -21,14 +21,14 @@ class CustomRunner(dl.Runner):
 
     def _handle_batch(self, batch):
         x, y = batch
-        loss, accuracy, enabled_model_name = self.model(x, y)
+        loss, accuracy = self.model(x, y)
 
         loss = loss.mean()
         accuracy = accuracy.mean()
 
         update_dict = {
-            f'{enabled_model_name}:loss': loss,
-            f'{enabled_model_name}:accuracy': accuracy
+            'loss': loss,
+            'accuracy': accuracy
         }
 
         self.state.batch_metrics.update(update_dict)
