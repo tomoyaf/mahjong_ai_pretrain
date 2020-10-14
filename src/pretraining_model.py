@@ -89,7 +89,7 @@ def get_loaders(batch_size, model_name):
     # path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     path_list = glob(f'./pickle/{model_name}/paifu_2018_*.pickle')
     np.random.shuffle(path_list)
-    path_list = path_list[:1000]
+    # path_list = path_list[:1000]
 
     data_size = len(path_list)
     train_size = int(data_size * 0.8)
