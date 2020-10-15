@@ -9,7 +9,6 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_path', type=str)
 parser.add_argument('--input_path', type=str)
-parser.add_argument('--debug', type=str)
 args = parser.parse_args()
 
 
@@ -25,6 +24,6 @@ if __name__ == '__main__':
                 pickle.dump(d, f)
 
 
-    with open(args.debug, 'rb') as f:
+    with open(f'{args.output_path}/00000000.pickle', 'rb') as f:
         res = pickle.load(f)
         print(res)
