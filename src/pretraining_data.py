@@ -37,7 +37,7 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         # action
         # Discard: 37, Reach:2 , Chow: 2, Pong: 2, Kong: 2
-        y = torch.full((5, ), -100, dtype=torch.long, device=device)
+        # y = torch.full((1, ), -100, dtype=torch.long, device=device)
         x = {}
 
         positions = self.get_positions(state['action']['who'])
@@ -53,7 +53,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         if state['action']['type'] == 'discard':
             # discarded_idx = self.pai_list.index(state['action']['tile'])
             # y[0] = discarded_idx
-            y[0] = state['hands'][state['action']['who']].index(state['action']['tile'])
+            y = state['hands'][state['action']['who']].index(state['action']['tile'])
             # found_count = 0
             # for i, tile in enumerate(state['hands'][state['action']['who']]):
             #     if tile == state['action']['tile']:
@@ -64,16 +64,16 @@ class PaifuDataset(torch.utils.data.Dataset):
 
 
         elif state['action']['type'] == 'reach':
-            y[1] = state['action']['p']
+            y = state['action']['p']
 
         elif state['action']['type'] == 'chow':
-            y[2] = state['action']['p']
+            y = state['action']['p']
 
         elif state['action']['type'] == 'pong':
-            y[3] = state['action']['p']
+            y = state['action']['p']
 
         elif state['action']['type'] == 'kong':
-            y[4] = state['action']['p']
+            y = state['action']['p']
 
         # melds : direction
         x['melds'] = [
