@@ -40,12 +40,15 @@ class PaifuDataset(torch.utils.data.Dataset):
         y = torch.full((5, ), -100, dtype=torch.long, device=device)
         x = {}
 
+        positions = self.get_positions(state['action']['who'])
 
         # hand
         hand = state['hands'][state['action']['who']]
         hand = self.pais2ids(hand)
         x['hand'] = self.normalize_pai_list(hand, device)
-        x['discards'] = self.normalize_discards(state['discards'], device)
+
+        # discards : direction
+        x['discards'] = self.normalize_discards(state['discards'], positions, device)
 
         if state['action']['type'] == 'discard':
             # discarded_idx = self.pai_list.index(state['action']['tile'])
@@ -72,11 +75,11 @@ class PaifuDataset(torch.utils.data.Dataset):
         elif state['action']['type'] == 'kong':
             y[4] = state['action']['p']
 
-        # melds
+        # melds : direction
         x['melds'] = [
             self.normalize_melds([
                 m for m in state['melds'] if m['who'] == i
-            ], device) for i in range(4)
+            ], device) for i in positions
         ]
 
         # action_meld_tiles
@@ -85,32 +88,44 @@ class PaifuDataset(torch.utils.data.Dataset):
         else:
             x['action_meld_tiles'] = torch.zeros(4, dtype=torch.long, device=device)
 
-        # menzen
-        x['menzen'] = torch.tensor(state['menzen'], dtype=torch.long, device=device)
+        # menzen : direction
+        x['menzen'] = torch.tensor(
+            [state['menzen'][i] for i in positions],
+            dtype=torch.long, device=device
+        )
 
-        # reach_state
-        x['reach_state'] = torch.tensor(state['reach_state'], dtype=torch.long, device=device)
+        # reach_state : direction
+        x['reach_state'] = torch.tensor(
+            [state['reach_state'][i] for i in positions],
+            dtype=torch.long, device=device
+        )
 
         # n_reach
         x['n_reach'] = torch.tensor([min([state['n_reach'], 2])], dtype=torch.long, device=device)
 
-        # reach_ippatsu
-        x['reach_ippatsu'] = torch.tensor(state['reach_ippatsu'], dtype=torch.long, device=device)
+        # reach_ippatsu : direction
+        x['reach_ippatsu'] = torch.tensor(
+            [state['reach_ippatsu'][i] for i in positions],
+            dtype=torch.long, device=device
+        )
 
         # doras
         x['doras'] = self.normalize_doras(state['doras'], device)
 
-        # dans
-        x['dans'] = torch.tensor(state['dans'], dtype=torch.long, device=device)
+        # dans : direction
+        x['dans'] = torch.tensor(
+            [state['dans'][i] for i in positions],
+            dtype=torch.long, device=device
+        )
 
-        # rates
-        x['rates'] = self.normalize_rates(state['rates'], device=device)
+        # rates : direction
+        x['rates'] = self.normalize_rates(state['rates'], positions, device=device)
 
         # oya
         x['oya'] = torch.tensor([state['oya']], dtype=torch.long, device=device)
 
-        # scores
-        x['scores'] = self.normalize_scores(state['scores'], device)
+        # scores : direction
+        x['scores'] = self.normalize_scores(state['scores'], positions, device)
 
         # n_honba
         x['n_honba'] = torch.tensor([min([state['n_honba'], 3])], dtype=torch.long, device=device)
@@ -153,8 +168,11 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         return score
 
-    def normalize_scores(self, scores, device):
-        return torch.tensor([self.normalize_score(score) for score in scores], dtype=torch.long, device=device)
+    def normalize_scores(self, scores, positions, device):
+        return torch.tensor(
+            [self.normalize_score(scores[i]) for i in positions],
+            dtype=torch.long, device=device
+        )
 
     def normalize_rate(self, rate):
         rate = int(rate) // 100 - 14
@@ -167,14 +185,17 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         return rate
 
-    def normalize_rates(self, rates, device):
+    def normalize_rates(self, rates, positions, device):
         # id : rate range
         # 0 : 1499以下
         # 1 : 1500から1600
         # …
         # 9 : 2300以上
 
-        return torch.tensor([self.normalize_rate(rate) for rate in rates], dtype=torch.long, device=device)
+        return torch.tensor(
+            [self.normalize_rate(rates[i]) for i in positions],
+            dtype=torch.long, device=device
+        )
 
 
     def normalize_doras(self, doras, device, max_len=5):
@@ -220,14 +241,14 @@ class PaifuDataset(torch.utils.data.Dataset):
         return torch.tensor([*tile_ids, *token_type]).reshape([2, -1])
 
 
-    def normalize_discards(self, discards, device):
+    def normalize_discards(self, discards, positions, device):
         max_n_discards = 25
         l = len(discards)
         res = torch.zeros((4, max_n_discards), dtype=torch.long, device=device)
 
-        for i in range(l):
-            res[i, :len(discards[i])] = torch.tensor(
-                self.pais2ids(discards[i]),
+        for i, pos in enumerate(positions):
+            res[i, :len(discards[pos])] = torch.tensor(
+                self.pais2ids(discards[pos]),
                 dtype=torch.long,
                 device=device
             )
@@ -251,3 +272,6 @@ class PaifuDataset(torch.utils.data.Dataset):
             [][-1]
 
         return self.pai_list.index(pai) + 1
+
+    def get_positions(self, who, n_players=4):
+        return [(i + who) % n_players for i in range(n_players)]

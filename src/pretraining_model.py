@@ -108,7 +108,7 @@ def get_loaders(batch_size, model_name):
 
 
 class MahjongEmbeddings(nn.Module):
-    def __init__(self, config, n_token_type=31):
+    def __init__(self, config, n_token_type=64):
         super(MahjongEmbeddings, self).__init__()
         print(config)
         self.config = config
@@ -117,9 +117,11 @@ class MahjongEmbeddings(nn.Module):
             config.hidden_size,
             padding_idx=config.pad_token_id
         )
+        self.n_position_embeddings = 25 + 20 + 1 # discard : 25, meld : 20, pad
         self.position_embeddings = nn.Embedding(
-            config.max_position_embeddings,
+            self.n_position_embeddings,
             config.hidden_size,
+            padding_idx=config.pad_token_id
         )
         self.token_type_embeddings = nn.Embedding(
             n_token_type,
@@ -153,30 +155,51 @@ class MahjongEmbeddings(nn.Module):
         self.kui_ari_offset = 125
 
         # Token type id
-        self.hand_token_id = 0
-        self.discard_0_token_id = 1
-        self.discard_1_token_id = 2
-        self.discard_2_token_id = 3
-        self.discard_3_token_id = 4
-        self.menzen_token_id = 5
-        self.reach_state_token_id = 6
-        self.n_reach_token_id = 7
-        self.reach_ippatsu_token_id = 8
-        self.dora_token_id = 9
-        self.dans_token_id = 10
-        self.rates_token_id = 11
-        self.scores_token_id = 12
-        self.oya_token_id = 13
-        self.n_honba_token_id = 14
-        self.n_round_token_id = 15
-        self.sanma_or_yonma_token_id = 16
-        self.han_or_ton_token_id = 17
-        self.aka_ari_token_id = 18
-        self.kui_ari_token_id = 19
-        self.action_meld_tiles_token_id = 20
+        self.hand_token_id = 1
+        self.discard_0_token_id = 2
+        self.discard_1_token_id = 3
+        self.discard_2_token_id = 4
+        self.discard_3_token_id = 5
+        self.menzen_0_token_id = 6
+        self.menzen_1_token_id = 7
+        self.menzen_2_token_id = 8
+        self.menzen_3_token_id = 9
+        self.reach_state_0_token_id = 10
+        self.reach_state_1_token_id = 11
+        self.reach_state_2_token_id = 12
+        self.reach_state_3_token_id = 13
+        self.n_reach_token_id = 14
+        self.reach_ippatsu_0_token_id = 15
+        self.reach_ippatsu_1_token_id = 16
+        self.reach_ippatsu_2_token_id = 17
+        self.reach_ippatsu_3_token_id = 18
+        self.dora_token_id = 19
+        self.dans_0_token_id = 20
+        self.dans_1_token_id = 21
+        self.dans_2_token_id = 22
+        self.dans_3_token_id = 23
+        self.rates_0_token_id = 24
+        self.rates_1_token_id = 25
+        self.rates_2_token_id = 26
+        self.rates_3_token_id = 27
+        self.scores_0_token_id = 28
+        self.scores_1_token_id = 29
+        self.scores_2_token_id = 30
+        self.scores_3_token_id = 31
+        self.oya_token_id = 32
+        self.n_honba_token_id = 33
+        self.n_round_token_id = 34
+        self.sanma_or_yonma_token_id = 35
+        self.han_or_ton_token_id = 36
+        self.aka_ari_token_id = 37
+        self.kui_ari_token_id = 38
+        self.action_meld_tiles_token_id = 39
 
         # Chow: 0, Pong : 1, Add Kong : 2, Pei : 3, Open Kong : 4, Closed Kong : 5
-        self.meld_base_token_id = 21
+        self.meld_0_base_token_id = 40
+        self.meld_1_base_token_id = 46
+        self.meld_2_base_token_id = 52
+        self.meld_3_base_token_id = 58
 
         self.special_token_id_list = [
             self.sep_token_id,
@@ -262,31 +285,49 @@ class MahjongEmbeddings(nn.Module):
             pad_token_type_ids,
             torch.full((batch_size, discard_length), self.discard_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            features['melds'][0][:, 1] + self.meld_base_token_id,
+            features['melds'][0][:, 1] + self.meld_0_base_token_id,
             pad_token_type_ids,
-            features['melds'][1][:, 1] + self.meld_base_token_id,
+            features['melds'][1][:, 1] + self.meld_1_base_token_id,
             pad_token_type_ids,
-            features['melds'][2][:, 1] + self.meld_base_token_id,
+            features['melds'][2][:, 1] + self.meld_2_base_token_id,
             pad_token_type_ids,
-            features['melds'][3][:, 1] + self.meld_base_token_id,
+            features['melds'][3][:, 1] + self.meld_3_base_token_id,
             pad_token_type_ids,
             torch.full((batch_size, 4), self.action_meld_tiles_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.menzen_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.menzen_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.menzen_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.menzen_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.menzen_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.reach_state_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_state_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_state_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_state_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_state_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
             torch.full((batch_size, 1), self.n_reach_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.reach_ippatsu_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_ippatsu_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_ippatsu_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_ippatsu_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.reach_ippatsu_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
             torch.full((batch_size,  dora_length), self.dora_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.dans_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.dans_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.dans_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.dans_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.dans_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.rates_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.rates_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.rates_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.rates_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.rates_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
-            torch.full((batch_size, 4), self.scores_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.scores_0_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.scores_1_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.scores_2_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.scores_3_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
             torch.full((batch_size, 1), self.oya_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
@@ -303,16 +344,21 @@ class MahjongEmbeddings(nn.Module):
             torch.full((batch_size, 1), self.kui_ari_token_id, dtype=torch.long, device=device)
         ], dim=1)
 
-        seq_len = x.shape[1]
-        pos_ids = torch.arange(
-            self.config.max_position_embeddings,
-            dtype=torch.long,
-            device=catalyst.utils.get_device()
-        )
-        pos_ids = torch.cat(
-            [pos_ids[:seq_len]] * batch_size
-        )
-        pos_ids = pos_ids.reshape((batch_size, seq_len))
+        meld_length = 20
+        pos_arange = torch.arange(self.n_position_embeddings - 1 , dtype=torch.long, device=device) + 1
+        discard_pos_ids = torch.cat([pos_arange[:discard_length]] * batch_size).reshape((batch_size, discard_length))
+        meld_pos_ids = torch.cat([pos_arange[discard_length : discard_length + meld_length]] * batch_size).reshape((batch_size, meld_length))
+        pos_ids = torch.zeros((x.size()[0], x.size()[1]), dtype=torch.long, device=device)
+
+        for i in range(4):
+            discard_start_idx = (1 + hand_length) + (1 + discard_length) * i + 1
+            discard_end_idx = discard_start_idx + discard_length
+            pos_ids[:, discard_start_idx : discard_end_idx] = discard_pos_ids
+
+            meld_start_idx = (1 + hand_length) + (1 + discard_length) * 4 + (1 + meld_length) * i + 1
+            meld_end_idx = meld_start_idx + meld_length
+            pos_ids[:, meld_start_idx : meld_end_idx] = meld_pos_ids
+
         return x, token_types, pos_ids
 
 
