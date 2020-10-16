@@ -15,15 +15,15 @@ args = parser.parse_args()
 if __name__ == '__main__':
     path_list = glob(args.input_path)
 
-    for path in tqdm(path_list):
+    for i, path in tqdm(enumerate(path_list)):
         with open(path, 'rb') as f:
             paifu = pickle.load(f)
         path_without_ext = os.path.splitext(path)[0]
-        for i, d in enumerate(paifu):
-            with open(f'{args.output_path}/{i:08}.pickle', 'wb') as f:
+        for j, d in enumerate(paifu):
+            with open(f'{args.output_path}/{i:08}_{j:08}.pickle', 'wb') as f:
                 pickle.dump(d, f)
 
 
-    with open(f'{args.output_path}/00000000.pickle', 'rb') as f:
+    with open(f'{args.output_path}/00000000_00000000.pickle', 'rb') as f:
         res = pickle.load(f)
         print(res)
