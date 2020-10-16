@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 
 if __name__ == '__main__':
-    path_list = glob(args.input_path)
+    path_list = glob(args.input_path)[:10]
 
     for i, path in tqdm(enumerate(path_list)):
         with open(path, 'rb') as f:

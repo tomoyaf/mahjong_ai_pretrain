@@ -26,18 +26,14 @@ class PaifuDataset(torch.utils.data.Dataset):
         with open(self.paifu_path_list[idx], 'rb') as f:
             paifu = pickle.load(f)
 
-        l = len(paifu)
-        state_idx = np.random.randint(0, l)
-        x, y = self.paifu_to_xy(paifu, state_idx)
+        x, y = self.paifu_state_to_xy(paifu)
         return x, y
 
-    def paifu_to_xy(self, paifu, state_idx):
+    def paifu_state_to_xy(self, state):
         device = catalyst.utils.get_device()
-        state = paifu[state_idx]
 
         # action
         # Discard: 37, Reach:2 , Chow: 2, Pong: 2, Kong: 2
-        # y = torch.full((1, ), -100, dtype=torch.long, device=device)
         x = {}
 
         positions = self.get_positions(state['action']['who'])
