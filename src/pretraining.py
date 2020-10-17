@@ -46,6 +46,7 @@ parser.add_argument('--output_path', type=str, default='./output/pretrained')
 parser.add_argument('--n_classes', type=int, default=37)
 parser.add_argument('--n_epochs', type=int, default=2)
 parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--max_data_size', type=int, default=300000)
 parser.add_argument('--lr', type=int, default=3e-5)
 parser.add_argument('--weight_decay', type=int, default=1e-2)
 parser.add_argument('--seed', type=int, default=2434)
@@ -59,7 +60,11 @@ print(f'model : {args.model_name}')
 
 if __name__ == '__main__':
     model = get_model(args.model_name)
-    train_loader, val_loader = get_loaders(args.batch_size, args.model_name)
+    train_loader, val_loader = get_loaders(
+        args.batch_size,
+        args.model_name,
+        args.max_data_size
+    )
     loaders = {
         'train': train_loader,
         'valid': val_loader

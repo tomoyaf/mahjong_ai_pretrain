@@ -81,11 +81,11 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
     return optimizer, lr_scheduler
 
 
-def get_loaders(batch_size, model_name):
+def get_loaders(batch_size, model_name, max_data_size):
     # path_list = glob(f'./pickle/*/paifu_2018_*.pickle')
     path_list = glob(f'./pickle/{model_name}/*.pickle')
     np.random.shuffle(path_list)
-    # path_list = path_list[:10]
+    path_list = path_list[:max_data_size]
 
     data_size = len(path_list)
     train_size = int(data_size * 0.8)
