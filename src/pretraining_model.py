@@ -88,7 +88,7 @@ def get_loaders(batch_size, model_name, max_data_size):
     path_list = path_list[:max_data_size]
 
     data_size = len(path_list)
-    train_size = int(data_size * 0.8)
+    train_size = int(data_size * 0.9)
     val_size = data_size - train_size
 
     print(f'Data size : {data_size}, Train size : {train_size}, Val size : {val_size}')
