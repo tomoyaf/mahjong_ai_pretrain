@@ -41,7 +41,7 @@ def get_model(enable_model_name):
         reach_config.hidden_size = hidden_size
         reach_config.num_attention_heads = num_attention_heads
         reach_config.max_position_embeddings = max_position_embeddings
-        reach_config.num_hidden_layers = 12
+        reach_config.num_hidden_layers = 24
         return MahjongReachChowPongKongModel(reach_config)
     elif enable_model_name == 'chow':
         chow_config = BertConfig()
@@ -49,7 +49,7 @@ def get_model(enable_model_name):
         chow_config.hidden_size = hidden_size
         chow_config.num_attention_heads = num_attention_heads
         chow_config.max_position_embeddings = max_position_embeddings
-        chow_config.num_hidden_layers = 12
+        chow_config.num_hidden_layers = 24
         return MahjongReachChowPongKongModel(chow_config)
     elif enable_model_name == 'pong':
         pong_config = BertConfig()
@@ -57,7 +57,7 @@ def get_model(enable_model_name):
         pong_config.hidden_size = hidden_size
         pong_config.num_attention_heads = num_attention_heads
         pong_config.max_position_embeddings = max_position_embeddings
-        pong_config.num_hidden_layers = 12
+        pong_config.num_hidden_layers = 24
         return MahjongReachChowPongKongModel(pong_config)
     elif enable_model_name == 'kong':
         kong_config = BertConfig()
@@ -65,7 +65,7 @@ def get_model(enable_model_name):
         kong_config.hidden_size = hidden_size
         kong_config.num_attention_heads = num_attention_heads
         kong_config.max_position_embeddings = max_position_embeddings
-        kong_config.num_hidden_layers = 12
+        kong_config.num_hidden_layers = 24
         return MahjongReachChowPongKongModel(kong_config)
 
     return None
