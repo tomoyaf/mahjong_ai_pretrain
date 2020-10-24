@@ -77,7 +77,7 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
 
 
     checkpoint = torch.load(pretrained_path, map_location=catalyst.utils.get_device())
-    print(checkpoint['model_state_dict'].keys())
+    # print(checkpoint['model_state_dict'].keys())
     model.load_state_dict(
         checkpoint['model_state_dict'],
         strict=False
