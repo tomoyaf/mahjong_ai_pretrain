@@ -16,11 +16,11 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     # tile(37), menzen(2), reach_state(2), n_reach(3),
     # reach_ippatsu(2), dans(21), rates(19), oya(4),
     # scores(13), n_honba(3), n_round(12), sanma_or_yonma(2),
-    # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
-    vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 # 130
+    # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4), who(4), sum_discards(6)
+    vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 + 4 + 6 # 140
     hidden_size = 1024
     num_attention_heads = 16
-    max_position_embeddings = 260
+    max_position_embeddings = 264
 
     if is_pretraining:
         config = BertConfig()
@@ -75,13 +75,12 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         kong_config.num_hidden_layers = 24
         model = MahjongReachChowPongKongModel(kong_config)
 
-
-    checkpoint = torch.load(pretrained_path, map_location=catalyst.utils.get_device())
-    # print(checkpoint['model_state_dict'].keys())
-    model.load_state_dict(
-        checkpoint['model_state_dict'],
-        strict=False
-    )
+    if pretrained_path != '':
+        checkpoint = torch.load(pretrained_path, map_location=catalyst.utils.get_device())
+        model.load_state_dict(
+            checkpoint['model_state_dict'],
+            strict=False
+        )
 
     return model
 
@@ -149,7 +148,7 @@ def get_loaders(batch_size, model_name, max_data_size, is_pretraining):
 
 
 class MahjongEmbeddings(nn.Module):
-    def __init__(self, config, n_token_type=64):
+    def __init__(self, config, n_token_type=73):
         super(MahjongEmbeddings, self).__init__()
         print(config)
         self.config = config
@@ -194,6 +193,8 @@ class MahjongEmbeddings(nn.Module):
         self.han_or_ton_offset = 121
         self.aka_ari_offset = 123
         self.kui_ari_offset = 125
+        self.who_offset = 130
+        self.sum_discards_offset = 134
 
         # Token type id
         self.hand_token_id = 1
@@ -235,12 +236,17 @@ class MahjongEmbeddings(nn.Module):
         self.aka_ari_token_id = 37
         self.kui_ari_token_id = 38
         self.action_meld_tiles_token_id = 39
+        self.who_token_id = 40
+        self.sum_discards_token_id = 41
 
         # Chow: 0, Pong : 1, Add Kong : 2, Pei : 3, Open Kong : 4, Closed Kong : 5
-        self.meld_0_base_token_id = 40
-        self.meld_1_base_token_id = 46
-        self.meld_2_base_token_id = 52
-        self.meld_3_base_token_id = 58
+        self.meld_0_base_token_id = 42
+        self.meld_1_base_token_id = 48
+        self.meld_2_base_token_id = 54
+        self.meld_3_base_token_id = 60
+
+        # Shanten range: 0 ~ 6
+        self.shanten_base_token_id = 66
 
         self.special_token_id_list = [
             self.sep_token_id,
@@ -250,7 +256,6 @@ class MahjongEmbeddings(nn.Module):
         ]
 
     def data2x(self, features, device):
-        who = features['who']
         hand = features['hand']
         batch_size = hand.size()[0]
         cls_ids = torch.full((batch_size, 1), self.cls_token_id, dtype=torch.long, device=device)
@@ -277,7 +282,11 @@ class MahjongEmbeddings(nn.Module):
             features['melds'][3][:, 0], # 80(20)
             sep_ids,
             features['action_meld_tiles'], # 4
-            sep_ids, # 49
+            sep_ids,
+            features['who'],
+            sep_ids,
+            features['sum_discards'],
+            sep_ids,
             features['menzen'] + self.menzen_offset,
             sep_ids,
             features['reach_state'] + self.reach_state_offset,
@@ -335,6 +344,10 @@ class MahjongEmbeddings(nn.Module):
             features['melds'][3][:, 1] + self.meld_3_base_token_id,
             pad_token_type_ids,
             torch.full((batch_size, 4), self.action_meld_tiles_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.who_token_id, dtype=torch.long, device=device),
+            pad_token_type_ids,
+            torch.full((batch_size, 1), self.sum_discards_token_id, dtype=torch.long, device=device),
             pad_token_type_ids,
             torch.full((batch_size, 1), self.menzen_0_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.menzen_1_token_id, dtype=torch.long, device=device),
@@ -400,12 +413,16 @@ class MahjongEmbeddings(nn.Module):
             meld_end_idx = meld_start_idx + meld_length
             pos_ids[:, meld_start_idx : meld_end_idx] = meld_pos_ids
 
-        return x, token_types, pos_ids
+        shanten_ids = torch.full(token_types.shape, self.pad_token_id, dtype=torch.long, device=device)
+        shanten_ids[:, 1:15] = features['shantens'] + self.shanten_base_token_id
+
+        return x, token_types, pos_ids, shanten_ids
 
 
-    def forward(self, x, token_type_ids, pos_ids):
+    def forward(self, x, token_type_ids, pos_ids, shanten_ids):
         embeddings = self.symbol_embeddings(x)
         embeddings += self.token_type_embeddings(token_type_ids)
+        embeddings += self.token_type_embeddings(shanten_ids)
         embeddings += self.position_embeddings(pos_ids)
 
         embeddings = self.layer_norm(embeddings)
@@ -534,7 +551,7 @@ class MahjongPretrainingModel(nn.Module):
 
 
     def forward(self, x_features, _):
-        x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, self.device)
+        x, token_type_ids, pos_ids, shanten_ids = self.embeddings.data2x(x_features, self.device)
         x, y = self.mask_tokens(
             x,
             mlm_probability=self.mlm_probability,
@@ -542,7 +559,7 @@ class MahjongPretrainingModel(nn.Module):
             mask_token_id=self.embeddings.mask_token_id,
             device=self.device
         )
-        embedding_output = self.embeddings(x, token_type_ids, pos_ids)
+        embedding_output = self.embeddings(x, token_type_ids, pos_ids, shanten_ids)
 
         bert_outputs = self.bert_encoder(embedding_output)
         sequence_output = bert_outputs[0]
@@ -616,8 +633,8 @@ class MahjongDiscardModel(nn.Module):
         self.loss_fct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x_features, y):
-        x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, y.device)
-        embedding_output = self.embeddings(x, token_type_ids, pos_ids)
+        x, token_type_ids, pos_ids, shanten_ids = self.embeddings.data2x(x_features, y.device)
+        embedding_output = self.embeddings(x, token_type_ids, pos_ids, shanten_ids)
 
         bert_outputs = self.bert_encoder(embedding_output)
         last_hidden_state = bert_outputs[0]
@@ -648,8 +665,8 @@ class MahjongReachChowPongKongModel(nn.Module):
         self.loss_fct = torch.nn.CrossEntropyLoss()
 
     def forward(self, x_features, y):
-        x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, y.device)
-        embedding_output = self.embeddings(x, token_type_ids, pos_ids)
+        x, token_type_ids, pos_ids, shanten_ids = self.embeddings.data2x(x_features, y.device)
+        embedding_output = self.embeddings(x, token_type_ids, pos_ids, shanten_ids)
 
         bert_outputs = self.bert_encoder(embedding_output)
         last_hidden_state = bert_outputs[0]

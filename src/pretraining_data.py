@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 import pickle
 import catalyst
+from mahjong.shanten import Shanten
 
 
 class PaifuDataset(torch.utils.data.Dataset):
@@ -16,6 +17,7 @@ class PaifuDataset(torch.utils.data.Dataset):
     def __init__(self, paifu_path_list):
         self.paifu_path_list = paifu_path_list
         self.data_size = len(paifu_path_list)
+        self.shanten_calculator = Shanten()
 
     def __len__(self):
         return self.data_size
@@ -45,6 +47,9 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         # discards : direction
         x['discards'] = self.normalize_discards(state['discards'], positions, device)
+
+        # Shanten : direction
+        x['shantens'] = self.calc_shantens(hand, device)
 
         if state['action']['type'] == 'discard':
             # discarded_idx = self.pai_list.index(state['action']['tile'])
@@ -117,8 +122,8 @@ class PaifuDataset(torch.utils.data.Dataset):
         # rates : direction
         x['rates'] = self.normalize_rates(state['rates'], positions, device=device)
 
-        # oya
-        x['oya'] = torch.tensor([state['oya']], dtype=torch.long, device=device)
+        # oya : direction
+        x['oya'] = torch.tensor([(state['oya'] - state['action']['who'] + 4) % 4], dtype=torch.long, device=device)
 
         # scores : direction
         x['scores'] = self.normalize_scores(state['scores'], positions, device)
@@ -142,10 +147,30 @@ class PaifuDataset(torch.utils.data.Dataset):
         x['kui_ari'] = torch.tensor([state['kui_ari']], dtype=torch.long, device=device)
 
         # who
-        x['who'] = state['action']['who']
+        x['who'] = torch.tensor([state['action']['who']], dtype=torch.long, device=device)
+
+        x['sum_discards'] = torch.tensor(
+           [self.calc_sum_discards(state['discards'])],
+            dtype=torch.long,
+            device=device
+        )
 
         return x, y
-        # return torch.tensor([1, 2, 3]), torch.tensor([1, 2, 3])
+
+
+    def calc_sum_discards(self, discards):
+        #  0から11 : 0
+        # 12から23 : 1
+        # 24から35 : 2
+        # 36から47 : 3
+        # 48から59 : 4
+        # 60以上   : 5
+        sum_discards = sum([len(d) for d in discards])
+
+        if sum_discards >= 60:
+            return 5
+
+        return sum_discards // (4 * 3)
 
     def normalize_score(self, score):
         # 0 : 4000以下（満貫は2000-4000だから）
@@ -249,6 +274,60 @@ class PaifuDataset(torch.utils.data.Dataset):
                 device=device
             )
         return res
+
+
+    def calc_shantens(self, hand, device):
+        shantens = []
+        hand_34_count = self.to_34_count(hand)
+        hand_34 = self.to_34_array(hand)
+
+        for tile in hand_34:
+            hand_34_count[tile] -= 1
+            shanten, _ = self.calc_shanten(hand_34_count)
+            shantens.append(shanten)
+            hand_34_count[tile] += 1
+
+        return self.normalize_pai_list(shantens, device)
+
+
+    def to_34_array(self, hand):
+        return [self.to_34(t) for t in hand]
+
+    def to_34_count(self, hand):
+        res = [0] * 34
+        for tile in hand:
+            res[self.to_34(tile)] += 1
+        return res
+
+    def to_34(self, tile):
+        if tile <= 5:
+            return tile - 1
+        if tile <= 15:
+            return tile - 2
+        if tile <= 25:
+            return tile - 3
+        return tile - 4
+
+
+    def calc_shanten(self, tiles_34, open_sets_34=None):
+        shanten_with_chiitoitsu = self.shanten_calculator.calculate_shanten(tiles_34,
+                                                                            open_sets_34,
+                                                                            chiitoitsu=True)
+        shanten_without_chiitoitsu = self.shanten_calculator.calculate_shanten(tiles_34,
+                                                                               open_sets_34,
+                                                                               chiitoitsu=False)
+
+        if shanten_with_chiitoitsu == 0 and shanten_without_chiitoitsu >= 1:
+            shanten = shanten_with_chiitoitsu
+            use_chiitoitsu = True
+        elif shanten_with_chiitoitsu == 1 and shanten_without_chiitoitsu >= 3:
+            shanten = shanten_with_chiitoitsu
+            use_chiitoitsu = True
+        else:
+            shanten = shanten_without_chiitoitsu
+            use_chiitoitsu = False
+
+        return shanten, use_chiitoitsu
 
 
     def normalize_pai_list(self, pai_list, device, n=14):
