@@ -284,10 +284,14 @@ class PaifuDataset(torch.utils.data.Dataset):
         for tile in hand_34:
             hand_34_count[tile] -= 1
             shanten, _ = self.calc_shanten(hand_34_count)
-            shantens.append(shanten)
+            shantens.append(min([shanten, 6]))
             hand_34_count[tile] += 1
 
-        return self.normalize_pai_list(shantens, device)
+        l = len(shantens)
+        x = torch.full((14, ), fill_value=-1, dtype=torch.long, device=device)
+        x[:l] = torch.tensor(shantens, dtype=torch.long, device=device)
+
+        return x
 
 
     def to_34_array(self, hand):
@@ -317,17 +321,7 @@ class PaifuDataset(torch.utils.data.Dataset):
                                                                                open_sets_34,
                                                                                chiitoitsu=False)
 
-        if shanten_with_chiitoitsu == 0 and shanten_without_chiitoitsu >= 1:
-            shanten = shanten_with_chiitoitsu
-            use_chiitoitsu = True
-        elif shanten_with_chiitoitsu == 1 and shanten_without_chiitoitsu >= 3:
-            shanten = shanten_with_chiitoitsu
-            use_chiitoitsu = True
-        else:
-            shanten = shanten_without_chiitoitsu
-            use_chiitoitsu = False
-
-        return shanten, use_chiitoitsu
+        return min([shanten_with_chiitoitsu, shanten_without_chiitoitsu]), shanten_with_chiitoitsu <= shanten_without_chiitoitsu
 
 
     def normalize_pai_list(self, pai_list, device, n=14):

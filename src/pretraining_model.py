@@ -148,7 +148,7 @@ def get_loaders(batch_size, model_name, max_data_size, is_pretraining):
 
 
 class MahjongEmbeddings(nn.Module):
-    def __init__(self, config, n_token_type=73):
+    def __init__(self, config, n_token_type=66):
         super(MahjongEmbeddings, self).__init__()
         print(config)
         self.config = config
@@ -165,6 +165,11 @@ class MahjongEmbeddings(nn.Module):
         )
         self.token_type_embeddings = nn.Embedding(
             n_token_type,
+            config.hidden_size,
+            padding_idx=config.pad_token_id
+        )
+        self.shanten_embeddings = nn.Embedding(
+            8, # padding + 7
             config.hidden_size,
             padding_idx=config.pad_token_id
         )
@@ -246,7 +251,7 @@ class MahjongEmbeddings(nn.Module):
         self.meld_3_base_token_id = 60
 
         # Shanten range: 0 ~ 6
-        self.shanten_base_token_id = 66
+        self.shanten_base_token_id = 1
 
         self.special_token_id_list = [
             self.sep_token_id,
@@ -422,7 +427,7 @@ class MahjongEmbeddings(nn.Module):
     def forward(self, x, token_type_ids, pos_ids, shanten_ids):
         embeddings = self.symbol_embeddings(x)
         embeddings += self.token_type_embeddings(token_type_ids)
-        embeddings += self.token_type_embeddings(shanten_ids)
+        embeddings += self.shanten_embeddings(shanten_ids)
         embeddings += self.position_embeddings(pos_ids)
 
         embeddings = self.layer_norm(embeddings)
