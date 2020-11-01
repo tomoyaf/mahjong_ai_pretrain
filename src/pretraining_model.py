@@ -422,7 +422,7 @@ class MahjongEmbeddings(nn.Module):
     def forward(self, x, token_type_ids, pos_ids, shanten_ids):
         embeddings = self.symbol_embeddings(x)
         embeddings += self.token_type_embeddings(token_type_ids)
-        embeddings += self.token_type_embeddings(shanten_ids)
+        # embeddings += self.token_type_embeddings(shanten_ids)
         embeddings += self.position_embeddings(pos_ids)
 
         embeddings = self.layer_norm(embeddings)
