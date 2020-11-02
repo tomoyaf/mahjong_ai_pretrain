@@ -49,7 +49,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         x['discards'] = self.normalize_discards(state['discards'], positions, device)
 
         # Shanten : direction
-        x['shantens'] = self.calc_shantens(hand, device)
+        x['shanten'], x['shanten_diff'] = self.calc_shantens(hand, device)
 
         if state['action']['type'] == 'discard':
             # discarded_idx = self.pai_list.index(state['action']['tile'])
@@ -285,9 +285,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         for tile in hand_34:
             hand_34_count[tile] -= 1
             shanten, _ = self.calc_shanten(hand_34_count)
-            if shanten < base_shanten:
-                shantens.append(2)
-            elif shanten == base_shanten:
+            if shanten > base_shanten:
                 shantens.append(1)
             else:
                 shantens.append(0)
@@ -297,7 +295,10 @@ class PaifuDataset(torch.utils.data.Dataset):
         x = torch.full((14, ), fill_value=-1, dtype=torch.long, device=device)
         x[:l] = torch.tensor(shantens, dtype=torch.long, device=device)
 
-        return x
+        base_shanten = min([base_shanten, 6]) + 1
+        base_shanten = torch.tensor([base_shanten], dtype=torch.long, device=device)
+
+        return base_shanten, x
 
 
     def to_34_array(self, hand):
