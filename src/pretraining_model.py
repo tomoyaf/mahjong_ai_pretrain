@@ -654,7 +654,6 @@ class MahjongDiscardModel(nn.Module):
     def forward(self, x_features, y):
         # x, token_type_ids, pos_ids, shanten_ids = self.embeddings.data2x(x_features, y.device)
         x, token_type_ids, pos_ids = self.embeddings.data2x(x_features, y.device)
-        print(f'x:{x}, token:{token_type_ids}, pos:{pos_ids}')
         # embedding_output = self.embeddings(x, token_type_ids, pos_ids, shanten_ids)
         embedding_output = self.embeddings(x, token_type_ids, pos_ids)
 
