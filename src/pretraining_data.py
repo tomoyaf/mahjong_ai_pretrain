@@ -280,11 +280,17 @@ class PaifuDataset(torch.utils.data.Dataset):
         shantens = []
         hand_34_count = self.to_34_count(hand)
         hand_34 = self.to_34_array(hand)
+        base_shanten, _ = self.calc_shanten(hand_34_count)
 
         for tile in hand_34:
             hand_34_count[tile] -= 1
             shanten, _ = self.calc_shanten(hand_34_count)
-            shantens.append(min([shanten, 6]))
+            if shanten < base_shanten:
+                shantens.append(2)
+            elif shanten == base_shanten:
+                shantens.append(1)
+            else:
+                shantens.append(0)
             hand_34_count[tile] += 1
 
         l = len(shantens)
