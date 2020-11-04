@@ -68,7 +68,7 @@ if __name__ == '__main__':
         args.pretraining,
         args.pretrained_path
     )
-    train_loader, val_loader = get_loaders(
+    train_loader, val_loader, test_loader = get_loaders(
         args.batch_size,
         args.model_name,
         args.max_data_size,
@@ -76,7 +76,8 @@ if __name__ == '__main__':
     )
     loaders = {
         'train': train_loader,
-        'valid': val_loader
+        'valid': val_loader,
+        'test': test_loader
     }
 
     train_size = int(args.max_data_size * 0.9)
