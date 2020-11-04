@@ -19,8 +19,10 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     # han_or_ton(2), aka_ari(2), kui_ari(2), special_token(4)
     # vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 + 2 + 4 + 6 + 8 # 130 + shanten_diff(2) + who(4) + sum_discards(6) + shanten(8)
     vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 + 4 + 6 + 8 # 130 + who(4) + sum_discards(6) + shanten(8)
-    hidden_size = 1024
-    num_attention_heads = 16
+    # hidden_size = 1024
+    # num_attention_heads = 16
+    hidden_size = 128
+    num_attention_heads = 4
     max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
     # max_position_embeddings = 281 # 260 + pad(1) + shanten_diff(14) + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
 
@@ -40,8 +42,8 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         discard_config.hidden_size = hidden_size
         discard_config.num_attention_heads = num_attention_heads
         discard_config.max_position_embeddings = max_position_embeddings
-        # discard_config.num_hidden_layers = 2
-        discard_config.num_hidden_layers = 24
+        discard_config.num_hidden_layers = 4
+        # discard_config.num_hidden_layers = 24
         # discard_config.num_hidden_layers = 12
         model = MahjongDiscardModel(discard_config)
     elif enable_model_name == 'reach':
