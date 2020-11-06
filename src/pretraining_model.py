@@ -42,7 +42,7 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         discard_config.hidden_size = hidden_size
         discard_config.num_attention_heads = num_attention_heads
         discard_config.max_position_embeddings = max_position_embeddings
-        discard_config.num_hidden_layers = 2
+        discard_config.num_hidden_layers = 8
         # discard_config.num_hidden_layers = 24
         # discard_config.num_hidden_layers = 12
         model = MahjongDiscardModel(discard_config)
