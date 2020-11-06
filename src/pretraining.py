@@ -52,6 +52,7 @@ parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--max_data_size', type=int, default=2000000)
 parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--weight_decay', type=float, default=1e-2)
+parser.add_argument('--warmup_steps_rate', type=float, default=0.06)
 parser.add_argument('--seed', type=int, default=2434)
 parser.add_argument('--model_name', type=str, default='')
 args = parser.parse_args()
@@ -81,13 +82,15 @@ if __name__ == '__main__':
     }
 
     train_size = int(args.max_data_size * 0.9)
-    n_training_steps = math.ceil(train_size / args.batch_size)
+    n_training_steps = math.ceil(train_size / args.batch_size) * args.n_epochs
+    n_warmup_steps = int(n_training_steps * args.warmup_steps_rate)
     optimizer, lr_scheduler = get_optimizer(
         model=model,
         lr=args.lr,
         weight_decay=args.weight_decay,
         n_epochs=args.n_epochs,
-        n_training_steps=n_training_steps
+        n_training_steps=n_training_steps,
+        n_warmup_steps=n_warmup_steps
     )
 
     runner = CustomRunner(

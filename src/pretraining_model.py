@@ -42,7 +42,7 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         discard_config.hidden_size = hidden_size
         discard_config.num_attention_heads = num_attention_heads
         discard_config.max_position_embeddings = max_position_embeddings
-        discard_config.num_hidden_layers = 16
+        discard_config.num_hidden_layers = 8
         # discard_config.num_hidden_layers = 24
         # discard_config.num_hidden_layers = 12
         model = MahjongDiscardModel(discard_config)
@@ -92,7 +92,7 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
 
 
 def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps=1e4, n_training_steps=4e5):
-    print(f'lr:{lr}, weight_decay:{weight_decay}, n_training_steps:{n_training_steps}')
+    print(f'lr:{lr}, weight_decay:{weight_decay}, n_training_steps:{n_training_steps}, n_warmup_steps:{n_warmup_steps}')
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     lr_scheduler = get_linear_schedule_with_warmup(
         optimizer,
