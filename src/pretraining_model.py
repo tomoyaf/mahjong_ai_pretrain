@@ -21,8 +21,8 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 + 4 + 6 + 8 # 130 + who(4) + sum_discards(6) + shanten(8)
     # hidden_size = 1024
     # num_attention_heads = 16
-    hidden_size = 1024
-    num_attention_heads = 16
+    hidden_size = 512
+    num_attention_heads = 8
     max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
     # max_position_embeddings = 281 # 260 + pad(1) + shanten_diff(14) + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
 
