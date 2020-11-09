@@ -42,3 +42,5 @@ if __name__ == '__main__':
                 break
         if outputs_count >= args.n_outputs:
             break
+
+    print(f'final outputs count:{outputs_count}')
