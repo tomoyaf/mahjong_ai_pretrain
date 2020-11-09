@@ -118,8 +118,6 @@ def process_path_list(path_list, max_data_size, n_max):
     val_path_list = path_list[file_train_size:file_train_size+file_val_size]
     test_path_list = path_list[-file_test_size:]
 
-    print(f'train:{train_path_list}, val:{val_path_list}, test:{test_path_list}')
-
     return train_path_list, val_path_list, test_path_list, data_size, train_size, val_size, test_size
 
 
