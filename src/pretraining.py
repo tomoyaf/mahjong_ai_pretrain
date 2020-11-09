@@ -55,6 +55,7 @@ parser.add_argument('--weight_decay', type=float, default=1e-2)
 parser.add_argument('--warmup_steps_rate', type=float, default=0.06)
 parser.add_argument('--seed', type=int, default=2434)
 parser.add_argument('--model_name', type=str, default='')
+parser.add_argument('--n_max', type=int, default=4)
 args = parser.parse_args()
 
 set_seed(args.seed)
@@ -73,7 +74,8 @@ if __name__ == '__main__':
         args.batch_size,
         args.model_name,
         args.max_data_size,
-        args.pretraining
+        args.pretraining,
+        args.n_max
     )
     loaders = {
         'train': train_loader,

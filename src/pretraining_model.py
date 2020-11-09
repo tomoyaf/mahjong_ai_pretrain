@@ -101,22 +101,29 @@ def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps
     )
     return optimizer, lr_scheduler
 
-def process_path_list(path_list, max_data_size):
-    path_list = path_list[:max_data_size]
+def process_path_list(path_list, max_data_size, n_max):
+    np.random.shuffle(path_list)
+    path_list = path_list[:(max_data_size // n_max)]
 
-    data_size = len(path_list)
+    data_size = len(path_list) * n_max
     train_size = int(data_size * 0.9)
     val_size = int(data_size * 0.05)
     test_size = data_size - train_size - val_size
 
-    train_path_list = path_list[:train_size]
-    val_path_list = path_list[train_size:train_size+val_size]
-    test_path_list = path_list[-test_size:]
+    file_train_size = train_size // n_max
+    file_val_size = val_size // n_max
+    file_test_size = test_size // n_max
+
+    train_path_list = path_list[:file_train_size]
+    val_path_list = path_list[file_train_size:file_train_size+file_val_size]
+    test_path_list = path_list[-file_test_size:]
+
+    print(f'train:{train_path_list}, val:{val_path_list}, test:{test_path_list}')
 
     return train_path_list, val_path_list, test_path_list, data_size, train_size, val_size, test_size
 
 
-def get_loaders(batch_size, model_name, max_data_size, is_pretraining):
+def get_loaders(batch_size, model_name, max_data_size, is_pretraining, n_max=100):
     train_path_list = []
     val_path_list = []
     test_path_list = []
@@ -133,29 +140,29 @@ def get_loaders(batch_size, model_name, max_data_size, is_pretraining):
             glob(f'./pickle/pong/*.pickle'),
             glob(f'./pickle/kong/*.pickle')
         ]
-        for path_list in path_list_list:
-            train_path_list_i, val_path_list_i, test_path_list_i, data_size_i, train_size_i, val_size_i, test_size_i = process_path_list(path_list, max_data_size // 5)
-            train_path_list += train_path_list_i
-            val_path_list += val_path_list_i
-            test_path_list += test_path_list_i
-            data_size += data_size_i
-            train_size += train_size_i
-            val_size += val_size_i
-            test_size += test_size_i
-            print(f'Partial Data size : {data_size_i}, Partial Train Size : {train_size_i}, Partial Val Size : {val_size_i}, Partial Val Size : {test_size_i}')
+        # for path_list in path_list_list:
+        #     train_path_list_i, val_path_list_i, test_path_list_i, data_size_i, train_size_i, val_size_i, test_size_i = process_path_list(path_list, max_data_size // 5)
+        #     train_path_list += train_path_list_i
+        #     val_path_list += val_path_list_i
+        #     test_path_list += test_path_list_i
+        #     data_size += data_size_i
+        #     train_size += train_size_i
+        #     val_size += val_size_i
+        #     test_size += test_size_i
+        #     print(f'Partial Data size : {data_size_i}, Partial Train Size : {train_size_i}, Partial Val Size : {val_size_i}, Partial Val Size : {test_size_i}')
     else:
         path_list = glob(f'./pickle/{model_name}/*.pickle')
-        train_path_list, val_path_list, test_path_list, data_size, train_size, val_size, test_size = process_path_list(path_list, max_data_size)
+        train_path_list, val_path_list, test_path_list, data_size, train_size, val_size, test_size = process_path_list(path_list, max_data_size, n_max)
 
-    np.random.shuffle(train_path_list)
-    np.random.shuffle(val_path_list)
-    np.random.shuffle(test_path_list)
+    # np.random.shuffle(train_path_list)
+    # np.random.shuffle(val_path_list)
+    # np.random.shuffle(test_path_list)
 
     print(f'Data size : {data_size}, Train size : {train_size}, Val size : {val_size}, Test size : {test_size}')
 
-    train_dataset = PaifuDataset(train_path_list)
-    val_dataset = PaifuDataset(val_path_list)
-    test_dataset = PaifuDataset(test_path_list)
+    train_dataset = PaifuDataset(train_path_list, n_max=n_max)
+    val_dataset = PaifuDataset(val_path_list, n_max=n_max)
+    test_dataset = PaifuDataset(test_path_list, n_max=n_max)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)

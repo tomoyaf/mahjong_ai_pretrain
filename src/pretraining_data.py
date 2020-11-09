@@ -14,10 +14,11 @@ class PaifuDataset(torch.utils.data.Dataset):
         "東", "南", "西", "北", "白", "發", "中"
     ]
 
-    def __init__(self, paifu_path_list):
+    def __init__(self, paifu_path_list, n_max=100):
         self.paifu_path_list = paifu_path_list
         self.data_size = len(paifu_path_list)
         self.shanten_calculator = Shanten()
+        self.n_max = n_max
 
     def __len__(self):
         return self.data_size
@@ -25,9 +26,13 @@ class PaifuDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         paifu = None
 
-        with open(self.paifu_path_list[idx], 'rb') as f:
+        file_idx = idx // self.n_max
+        inner_idx = idx % self.n_max
+
+        with open(self.paifu_path_list[file_idx], 'rb') as f:
             paifu = pickle.load(f)
 
+        paifu = paifu[inner_idx]
         x, y = self.paifu_state_to_xy(paifu)
         return x, y
 
