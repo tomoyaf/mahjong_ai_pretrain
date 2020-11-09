@@ -16,7 +16,7 @@ class PaifuDataset(torch.utils.data.Dataset):
 
     def __init__(self, paifu_path_list, n_max=100):
         self.paifu_path_list = paifu_path_list
-        self.data_size = len(paifu_path_list)
+        self.data_size = len(paifu_path_list) * n_max
         self.shanten_calculator = Shanten()
         self.n_max = n_max
 
