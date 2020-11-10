@@ -129,14 +129,15 @@ def get_loaders(batch_size, model_name, max_data_size, is_pretraining, n_max=100
     train_size = 0
     val_size = 0
     test_size = 0
+    base_path = './preprocessed'
 
     if is_pretraining:
         path_list_list = [
-            glob(f'./pickle/discard/*.pickle'),
-            glob(f'./pickle/reach/*.pickle'),
-            glob(f'./pickle/chow/*.pickle'),
-            glob(f'./pickle/pong/*.pickle'),
-            glob(f'./pickle/kong/*.pickle')
+            glob(f'{base_path}/discard/*'),
+            glob(f'{base_path}/reach/*'),
+            glob(f'{base_path}/chow/*'),
+            glob(f'{base_path}/pong/*'),
+            glob(f'{base_path}/kong/*')
         ]
         # for path_list in path_list_list:
         #     train_path_list_i, val_path_list_i, test_path_list_i, data_size_i, train_size_i, val_size_i, test_size_i = process_path_list(path_list, max_data_size // 5)
@@ -149,7 +150,7 @@ def get_loaders(batch_size, model_name, max_data_size, is_pretraining, n_max=100
         #     test_size += test_size_i
         #     print(f'Partial Data size : {data_size_i}, Partial Train Size : {train_size_i}, Partial Val Size : {val_size_i}, Partial Val Size : {test_size_i}')
     else:
-        path_list = glob(f'./pickle/{model_name}/*.pickle')
+        path_list = glob(f'{base_path}/{model_name}/*')
         train_path_list, val_path_list, test_path_list, data_size, train_size, val_size, test_size = process_path_list(path_list, max_data_size, n_max)
 
     # np.random.shuffle(train_path_list)

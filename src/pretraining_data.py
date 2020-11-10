@@ -19,6 +19,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         self.data_size = len(paifu_path_list) * n_max
         self.shanten_calculator = Shanten()
         self.n_max = n_max
+        self.device = catalyst.utils.get_device()
 
     def __len__(self):
         return self.data_size
@@ -31,10 +32,13 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         with open(self.paifu_path_list[file_idx], 'rb') as f:
             paifu = pickle.load(f)
-
+        print(paifu)
         paifu = paifu[inner_idx]
-        x, y = self.paifu_state_to_xy(paifu)
-        return x, y
+        # x, y = self.paifu_state_to_xy(paifu)
+        # x = paifu['x'].to(self.device)
+        # y = paifu['y'].to(self.device)
+        # return x, y
+        return paifu['x'], paifu['y']
 
     def paifu_state_to_xy(self, state):
         device = catalyst.utils.get_device()
@@ -346,12 +350,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         return [self.pai2id(pai, pai_list) for pai in pai_list]
 
     def pai2id(self, pai, pai_list=[]):
-        if pai not in self.pai_list:
-            print('wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww')
-            print(pai)
-            print(pai_list)
-            [][-1]
-
+        assert(pai in pai_list)
         return self.pai_list.index(pai) + 1
 
     def get_positions(self, who, n_players=4):
