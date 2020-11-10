@@ -32,13 +32,12 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         with open(self.paifu_path_list[file_idx], 'rb') as f:
             paifu = pickle.load(f)
-        print(paifu)
         paifu = paifu[inner_idx]
-        # x, y = self.paifu_state_to_xy(paifu)
+        x, y = self.paifu_state_to_xy(paifu)
         # x = paifu['x'].to(self.device)
         # y = paifu['y'].to(self.device)
-        # return x, y
-        return paifu['x'], paifu['y']
+        return x, y
+        # return paifu['x'], paifu['y']
 
     def paifu_state_to_xy(self, state):
         device = catalyst.utils.get_device()
