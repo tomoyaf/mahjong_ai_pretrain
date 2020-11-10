@@ -57,7 +57,7 @@ class PaifuDataset(torch.utils.data.Dataset):
         x['discards'] = self.normalize_discards(state['discards'], positions, device)
 
         # Shanten : direction
-        x['shanten'], x['shanten_diff'] = self.calc_shantens(hand, device)
+        # x['shanten'], x['shanten_diff'] = self.calc_shantens(hand, device)
 
         if state['action']['type'] == 'discard':
             # discarded_idx = self.pai_list.index(state['action']['tile'])

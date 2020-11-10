@@ -23,7 +23,8 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     # num_attention_heads = 16
     hidden_size = 128
     num_attention_heads = 2
-    max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
+    max_position_embeddings = 238 # base + who(1) + sum_discards(1)
+    # max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
     # max_position_embeddings = 281 # 260 + pad(1) + shanten_diff(14) + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
 
     if is_pretraining:
@@ -316,7 +317,7 @@ class MahjongEmbeddings(nn.Module):
             features['han_or_ton'] + self.han_or_ton_offset,
             features['aka_ari'] + self.aka_ari_offset,
             features['kui_ari'] + self.kui_ari_offset,
-            features['shanten'] + self.shanten_offset,
+            # features['shanten'] + self.shanten_offset,
             features['who'] + self.who_offset,
             features['sum_discards'] + self.sum_discards_offset
         ], dim=1)
@@ -371,7 +372,7 @@ class MahjongEmbeddings(nn.Module):
             torch.full((batch_size, 1), self.han_or_ton_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.aka_ari_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.kui_ari_token_id, dtype=torch.long, device=device),
-            torch.full((batch_size, 1), self.shanten_token_id, dtype=torch.long, device=device),
+            # torch.full((batch_size, 1), self.shanten_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.who_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.sum_discards_token_id, dtype=torch.long, device=device)
         ], dim=1)
