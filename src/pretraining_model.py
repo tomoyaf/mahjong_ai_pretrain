@@ -24,6 +24,8 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     hidden_size = 128
     num_attention_heads = 2
     max_position_embeddings = 238 # base + who(1) + sum_discards(1)
+    intermediate_size = 512
+    # intermediate_size = 3072
     # max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
     # max_position_embeddings = 281 # 260 + pad(1) + shanten_diff(14) + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
 
@@ -44,6 +46,7 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         discard_config.num_attention_heads = num_attention_heads
         discard_config.max_position_embeddings = max_position_embeddings
         discard_config.num_hidden_layers = 2
+        discard_config.intermediate_size = intermediate_size
         # discard_config.num_hidden_layers = 24
         # discard_config.num_hidden_layers = 12
         model = MahjongDiscardModel(discard_config)
