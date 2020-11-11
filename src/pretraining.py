@@ -17,6 +17,11 @@ import random
 
 class CustomRunner(dl.Runner):
 
+    accumulation_steps_count = 0
+    accumulation_steps = 15
+    acc_loss = None
+    acc_accuracy = None
+
     def predict_batch(self, batch):
         return []
 
@@ -27,18 +32,39 @@ class CustomRunner(dl.Runner):
         loss = loss.mean()
         accuracy = accuracy.mean()
 
-        update_dict = {
-            'loss': loss,
-            'accuracy': accuracy
-        }
+        if self.acc_loss is None:
+            self.acc_loss = loss.item()
+        else:
+            self.acc_loss += loss.item()
 
-        self.state.batch_metrics.update(update_dict)
+        if self.acc_accuracy is None:
+            self.acc_accuracy = accuracy.item()
+        else:
+            self.acc_accuracy += accuracy.item()
 
-        # if self.state.is_train_loader:
-        #     loss.backward()
-        #     self.state.optimizer.step()
-        #     self.state.optimizer.zero_grad()
-        #     self.state.scheduler.step()
+        self.accumulation_steps_count += 1
+
+        if self.state.is_train_loader:
+            loss /= float(self.accumulation_steps_count)
+            loss.backward()
+
+        if self.accumulation_steps_count == self.accumulation_steps:
+            self.acc_loss /= float(self.accumulation_steps_count)
+            self.acc_accuracy /= float(self.accumulation_steps_count)
+            self.state.batch_metrics.update({
+                'loss': self.acc_loss,
+                'accuracy': self.acc_accuracy
+            })
+
+            if self.state.is_train_loader:
+                self.state.optimizer.step()
+                self.state.optimizer.zero_grad()
+                self.state.scheduler.step()
+
+            self.accumulation_steps_count = 0
+            self.acc_loss = None
+            self.acc_accuracy = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +82,6 @@ parser.add_argument('--warmup_steps_rate', type=float, default=0.06)
 parser.add_argument('--seed', type=int, default=2434)
 parser.add_argument('--model_name', type=str, default='')
 parser.add_argument('--n_max', type=int, default=4)
-parser.add_argument('--n_accumulation_steps', type=int, default=10)
 args = parser.parse_args()
 
 set_seed(args.seed)
@@ -107,11 +132,4 @@ if __name__ == '__main__':
         logdir=args.output_path,
         num_epochs=args.n_epochs,
         verbose=True,
-        callbacks={
-            "optimizer": dl.OptimizerCallback(
-                metric_key="loss",     # you can also pass 'mae' to optimize it instead
-                                        # generaly, you can optimize any differentiable metric from `runner.batch_metrics`
-                accumulation_steps=args.n_accumulation_steps,  # also you can pass any number of steps for gradient accumulation
-            )
-        }
     )
