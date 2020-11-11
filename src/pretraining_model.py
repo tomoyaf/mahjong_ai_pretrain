@@ -21,10 +21,10 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
     vocab_size = 37 + 2 + 2 + 3 + 2 + 21 + 19 + 4 + 13 + 3 + 12 + 2 + 2 + 2 + 2 + 4 + 4 + 6 + 8 # 130 + who(4) + sum_discards(6) + shanten(8)
     # hidden_size = 1024
     # num_attention_heads = 16
-    hidden_size = 16
-    num_attention_heads = 2
-    max_position_embeddings = 238 # base + who(1) + sum_discards(1)
-    intermediate_size = 64
+    hidden_size = 768
+    num_attention_heads = 12
+    max_position_embeddings = 239 # base + who(1) + sum_discards(1) + shanten(1)
+    # intermediate_size = 64
     # intermediate_size = 3072
     # max_position_embeddings = 239 # base + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
     # max_position_embeddings = 281 # 260 + pad(1) + shanten_diff(14) + pad(1) + who(1) + pad(1) + sum_discards(1) + pad(1) + shanten(1)
@@ -45,8 +45,8 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         discard_config.hidden_size = hidden_size
         discard_config.num_attention_heads = num_attention_heads
         discard_config.max_position_embeddings = max_position_embeddings
-        discard_config.num_hidden_layers = 2
-        discard_config.intermediate_size = intermediate_size
+        discard_config.num_hidden_layers = 12
+        # discard_config.intermediate_size = intermediate_size
         # discard_config.num_hidden_layers = 24
         # discard_config.num_hidden_layers = 12
         model = MahjongDiscardModel(discard_config)
@@ -82,7 +82,6 @@ def get_model(enable_model_name, is_pretraining, pretrained_path):
         kong_config.max_position_embeddings = max_position_embeddings
         kong_config.num_hidden_layers = 24
         model = MahjongReachChowPongKongModel(kong_config)
-
 
     if pretrained_path != '':
         checkpoint = torch.load(pretrained_path, map_location=catalyst.utils.get_device())
@@ -320,7 +319,7 @@ class MahjongEmbeddings(nn.Module):
             features['han_or_ton'] + self.han_or_ton_offset,
             features['aka_ari'] + self.aka_ari_offset,
             features['kui_ari'] + self.kui_ari_offset,
-            # features['shanten'] + self.shanten_offset,
+            features['shanten'] + self.shanten_offset,
             features['who'] + self.who_offset,
             features['sum_discards'] + self.sum_discards_offset
         ], dim=1)
@@ -375,7 +374,7 @@ class MahjongEmbeddings(nn.Module):
             torch.full((batch_size, 1), self.han_or_ton_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.aka_ari_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.kui_ari_token_id, dtype=torch.long, device=device),
-            # torch.full((batch_size, 1), self.shanten_token_id, dtype=torch.long, device=device),
+            torch.full((batch_size, 1), self.shanten_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.who_token_id, dtype=torch.long, device=device),
             torch.full((batch_size, 1), self.sum_discards_token_id, dtype=torch.long, device=device)
         ], dim=1)

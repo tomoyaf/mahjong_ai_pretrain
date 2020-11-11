@@ -34,11 +34,11 @@ class CustomRunner(dl.Runner):
 
         self.state.batch_metrics.update(update_dict)
 
-        if self.state.is_train_loader:
-            loss.backward()
-            self.state.optimizer.step()
-            self.state.optimizer.zero_grad()
-            self.state.scheduler.step()
+        # if self.state.is_train_loader:
+        #     loss.backward()
+        #     self.state.optimizer.step()
+        #     self.state.optimizer.zero_grad()
+        #     self.state.scheduler.step()
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ parser.add_argument('--warmup_steps_rate', type=float, default=0.06)
 parser.add_argument('--seed', type=int, default=2434)
 parser.add_argument('--model_name', type=str, default='')
 parser.add_argument('--n_max', type=int, default=4)
+parser.add_argument('--n_accumulation_steps', type=int, default=10)
 args = parser.parse_args()
 
 set_seed(args.seed)
@@ -105,5 +106,12 @@ if __name__ == '__main__':
         loaders=loaders,
         logdir=args.output_path,
         num_epochs=args.n_epochs,
-        verbose=True
+        verbose=True,
+        callbacks={
+            "optimizer": dl.OptimizerCallback(
+                metric_key="loss",     # you can also pass 'mae' to optimize it instead
+                                        # generaly, you can optimize any differentiable metric from `runner.batch_metrics`
+                accumulation_steps=args.n_accumulation_steps,  # also you can pass any number of steps for gradient accumulation
+            )
+        }
     )
