@@ -90,6 +90,7 @@ print(f'device : {catalyst.utils.get_device()}')
 print(f'model : {args.model_name}')
 print(f'is_pretraining : {args.pretraining}')
 
+
 if __name__ == '__main__':
     model = get_model(
         args.model_name,
