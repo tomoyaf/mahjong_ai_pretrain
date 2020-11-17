@@ -18,11 +18,11 @@ import random
 class CustomRunner(dl.Runner):
 
     accumulation_steps_count = 0
-    accumulation_steps = 15
+    accumulation_steps = 50
     acc_loss = None
     acc_accuracy = None
 
-    max_grad_norm = 0.01
+    # max_grad_norm = 0.01
 
     def predict_batch(self, batch):
         return []
@@ -59,7 +59,7 @@ class CustomRunner(dl.Runner):
             })
 
             if self.state.is_train_loader:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 self.state.optimizer.step()
                 self.state.optimizer.zero_grad()
                 self.state.scheduler.step()
