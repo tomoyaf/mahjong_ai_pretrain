@@ -22,7 +22,7 @@ class CustomRunner(dl.Runner):
     acc_loss = None
     acc_accuracy = None
 
-    max_grad_norm = 1.0
+    max_grad_norm = 0.2
 
     def predict_batch(self, batch):
         return []
