@@ -18,7 +18,7 @@ import random
 class CustomRunner(dl.Runner):
 
     accumulation_steps_count = 0
-    accumulation_steps = 50
+    accumulation_steps = 150
     acc_loss = None
     acc_accuracy = None
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         'valid': val_loader,
         'test': test_loader
     }
-    accumulation_steps = 15
+    accumulation_steps = 150
     train_size = int(args.max_data_size * 0.9)
     n_training_steps = (math.ceil(train_size // args.batch_size) // accumulation_steps) * args.n_epochs
     n_warmup_steps = int(n_training_steps * args.warmup_steps_rate)
