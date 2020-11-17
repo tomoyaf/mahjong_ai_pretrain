@@ -22,6 +22,8 @@ class CustomRunner(dl.Runner):
     acc_loss = None
     acc_accuracy = None
 
+    max_grad_norm = 1.0
+
     def predict_batch(self, batch):
         return []
 
@@ -47,6 +49,7 @@ class CustomRunner(dl.Runner):
         if self.state.is_train_loader:
             loss /= float(self.accumulation_steps_count)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
 
         if self.accumulation_steps_count == self.accumulation_steps:
             self.acc_loss /= float(self.accumulation_steps_count)
