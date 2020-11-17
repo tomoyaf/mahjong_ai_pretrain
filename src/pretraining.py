@@ -49,7 +49,6 @@ class CustomRunner(dl.Runner):
         if self.state.is_train_loader:
             loss /= float(self.accumulation_steps_count)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
 
         if self.accumulation_steps_count == self.accumulation_steps:
             self.acc_loss /= float(self.accumulation_steps_count)
@@ -60,6 +59,7 @@ class CustomRunner(dl.Runner):
             })
 
             if self.state.is_train_loader:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 self.state.optimizer.step()
                 self.state.optimizer.zero_grad()
                 self.state.scheduler.step()
