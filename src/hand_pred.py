@@ -10,7 +10,7 @@ from catalyst.utils import metrics
 from transformers import set_seed
 import numpy as np
 
-from pretraining_model import get_model, get_optimizer, get_loaders
+from hand_pred_model import get_model, get_optimizer, get_loaders
 
 import random
 
@@ -72,9 +72,7 @@ class CustomRunner(dl.Runner):
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretraining', action='store_true')
-parser.add_argument('--output_path', type=str, default='./output/pretrained')
-parser.add_argument('--pretrained_path', type=str, default='')
+parser.add_argument('--output_path', type=str, default='./output')
 parser.add_argument('--n_classes', type=int, default=37)
 parser.add_argument('--n_epochs', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=32)
@@ -91,20 +89,14 @@ set_seed(args.seed)
 
 print(f'device : {catalyst.utils.get_device()}')
 print(f'model : {args.model_name}')
-print(f'is_pretraining : {args.pretraining}')
 
 
 if __name__ == '__main__':
-    model = get_model(
-        args.model_name,
-        args.pretraining,
-        args.pretrained_path
-    )
+    model = get_model()
     train_loader, val_loader, test_loader = get_loaders(
         args.batch_size,
         args.model_name,
         args.max_data_size,
-        args.pretraining,
         args.n_max
     )
     loaders = {
