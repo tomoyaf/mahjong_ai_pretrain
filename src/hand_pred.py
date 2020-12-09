@@ -22,7 +22,7 @@ class CustomRunner(dl.Runner):
     acc_loss = None
     acc_accuracy = None
 
-    # max_grad_norm = 0.01
+    max_grad_norm = 0.5
 
     def predict_batch(self, batch):
         return []
@@ -59,7 +59,7 @@ class CustomRunner(dl.Runner):
             })
 
             if self.state.is_train_loader:
-                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 self.state.optimizer.step()
                 self.state.optimizer.zero_grad()
                 self.state.scheduler.step()
@@ -104,7 +104,7 @@ if __name__ == '__main__':
         'valid': val_loader,
         'test': test_loader
     }
-    accumulation_steps = 50
+    accumulation_steps = 1
     train_size = int(args.max_data_size * 0.9)
     n_training_steps = (math.ceil(train_size // args.batch_size) // accumulation_steps) * args.n_epochs
     n_warmup_steps = int(n_training_steps * args.warmup_steps_rate)

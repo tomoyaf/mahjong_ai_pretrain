@@ -70,6 +70,8 @@ class PaifuDataset(torch.utils.data.Dataset):
                 sep_token = 39
                 y += enemy_hand
                 y += [sep_token]
+                # y += [i] * len(enemy_hand)
+                # y += [4]
 
             # pad_token = 1
             pad_token = -100

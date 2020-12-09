@@ -39,14 +39,23 @@ def get_model():
 
 
 def get_optimizer(model, lr=1e-4, weight_decay=0.01, n_epochs=10, n_warmup_steps=1e4, n_training_steps=4e5):
+    n_warmup_steps = 4000
     print(f'lr:{lr}, weight_decay:{weight_decay}, n_training_steps:{n_training_steps}, n_warmup_steps:{n_warmup_steps}')
-    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    lr_scheduler = get_linear_schedule_with_warmup(
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, betas=[0.9, 0.98])
+    # optimizer = AdamW(model.parameters(), lr=lr, betas=[0.9, 0.], weight_decay=weight_decay)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
+    # lr_scheduler = get_linear_schedule_with_warmup(
+    #     optimizer,
+    #     num_warmup_steps=n_warmup_steps,
+    #     num_training_steps=n_training_steps
+    # )
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer,
-        num_warmup_steps=n_warmup_steps,
-        num_training_steps=n_training_steps
+        lr_lambda=lambda step: min([(step + 1) ** -0.5, (step + 1) * n_warmup_steps ** -1.5])
     )
     return optimizer, lr_scheduler
+
 
 def process_path_list(path_list, max_data_size, n_max):
     np.random.shuffle(path_list)
@@ -367,7 +376,7 @@ def accuracy_fct(logits, y, n_classes):
     corrects = pred == y
     enableds = (y != -100)
     # print(f'enableds:{(y != -100)}')
-    # print(f'pred:{pred}')
+    # print(f'pred:{pred.reshape((-1, 43))}')
     return torch.tensor(
         corrects.sum().item() / enableds.sum().item(),
         dtype=torch.float, device=y.device
@@ -407,6 +416,7 @@ class MahjongModel(nn.Module):
         # if self.src_mask is None:
         #     mask = self.generate_square_subsequent_mask(embedding_output.shape[1]).to(y.device)
         #     self.src_mask = mask
+        # src_mask = self.generate_src_mask(x)
 
         transformer_output = self.transformer(
             src_emb.permute(1, 0, 2), # (batch size, seq len, hidden size) -> (seq len, batch size, hidden size)
@@ -414,13 +424,17 @@ class MahjongModel(nn.Module):
             # self.src_mask,
             tgt_mask=self.tgt_mask
         )
-        logits = self.head(transformer_output)
-
+        logits = self.head(
+            transformer_output.permute(1, 0, 2) # (tgt len, batch size, hidden size) -> (batch size, tgt len, hidden size)
+        )
 
         # print(f'logits:{logits.shape}, y:{y}')
 
         y[(y != -100) * (y != 39)] -= 1
         y[y == 39] = 37
+
+
+        # print(f'self.tgt_mask:{self.tgt_mask}, tgt_ids:{tgt_ids}, y:{y}')
 
         # print(f'logits:{logits.shape}, y:{y}')
 
