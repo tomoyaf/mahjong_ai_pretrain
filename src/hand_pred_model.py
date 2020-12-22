@@ -398,6 +398,7 @@ class MahjongModel(nn.Module):
         self.pos_encoder = PositionalEncoding(config['d_model'])
         self.head = nn.Linear(config['d_model'], config['num_outputs'])
         self.loss_fct = torch.nn.CrossEntropyLoss()
+        self.softmax = torch.nn.Softmax(dim=1)
 
         self.src_mask = None
         self.tgt_mask = None
@@ -449,3 +450,40 @@ class MahjongModel(nn.Module):
         )
 
         return loss, accuracy
+
+    def predict(self, x_features, y):
+        # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
+
+
+        # print(f'x_features: {x_features}')
+        # print(f'y: {y}')
+
+        l = len(y)
+        y_tensor = torch.full(((14 + 1) * 3, ), -100, dtype=torch.long, device=device)
+        y_tensor[:l] = torch.tensor(y, dtype=torch.long, device=device)
+        y_tensor = y_tensor.unsqueeze(0)
+
+        x, token_type_ids, tgt_ids = self.embeddings.data2x(x_features, device, y_tensor)
+        # print(f'tgt_ids:{tgt_ids}')
+
+        src_emb, tgt_emb = self.embeddings(x, token_type_ids, tgt_ids)
+        src_emb = self.pos_encoder(src_emb * math.sqrt(self.config['d_model']))
+        tgt_emb = self.pos_encoder(tgt_emb * math.sqrt(self.config['d_model']))
+
+        if self.tgt_mask is None:
+            mask = self.transformer.generate_square_subsequent_mask(y_tensor.shape[1]).to(device)
+            self.tgt_mask = mask
+
+        transformer_output = self.transformer(
+            src_emb.permute(1, 0, 2), # (batch size, seq len, hidden size) -> (seq len, batch size, hidden size)
+            tgt_emb.permute(1, 0, 2), #
+            tgt_mask=self.tgt_mask
+        )
+        logits = self.head(
+            transformer_output.permute(1, 0, 2) # (tgt len, batch size, hidden size) -> (batch size, tgt len, hidden size)
+        )
+        logits = logits[0][len(y)]
+        prob = self.softmax(logits.unsqueeze(0))
+        log_p = torch.log(prob)[0]
+        return log_p

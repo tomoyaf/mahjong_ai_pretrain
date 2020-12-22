@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import pickle
-import catalyst
 from mahjong.shanten import Shanten
 
 
@@ -19,7 +18,8 @@ class PaifuDataset(torch.utils.data.Dataset):
         self.data_size = len(paifu_path_list) * n_max
         self.shanten_calculator = Shanten()
         self.n_max = n_max
-        self.device = catalyst.utils.get_device()
+        # self.device =  'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = 'cpu'
 
     def __len__(self):
         return self.data_size
@@ -40,7 +40,8 @@ class PaifuDataset(torch.utils.data.Dataset):
         # return paifu['x'], paifu['y']
 
     def paifu_state_to_xy(self, state):
-        device = catalyst.utils.get_device()
+        # device =  'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
 
         # action
         # Discard: 37, Reach:2 , Chow: 2, Pong: 2, Kong: 2
@@ -58,6 +59,13 @@ class PaifuDataset(torch.utils.data.Dataset):
 
         # Shanten : direction
         x['shanten'], x['shanten_diff'] = self.calc_shantens(hand, device)
+
+        # n_hands_list
+        # x['n_hands_list'] = [len(h) for h in state['hands']]
+        x['n_hands_list'] = [len(state['hands'][p]) for p in positions[1:]]
+
+        # paifu id
+        x['paifu_id'] = state['paifu_id']
 
         if state['action']['type'] == 'discard':
             y = state['hands'][state['action']['who']].index(state['action']['tile'])
